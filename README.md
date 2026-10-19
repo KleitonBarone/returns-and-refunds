@@ -13,6 +13,11 @@ their proposed commits, acceptance checks, pushes, reviews, and verified merges.
 Use the [thread starter](THREAD_START.md) to begin the next delivery step in a
 development conversation.
 
+The plan also defines reproducible local and end-to-end test environments,
+readiness checks, deterministic fixtures, and cleanup after success or failure.
+Temporary test resources are disposable; normal shutdown preserves demo data.
+Logs and browser artifacts have bounded retention to prevent disk buildup.
+
 The planned demo follows a partial return through approval, warehouse receipt,
 and a refund whose successful response is lost. Retrying the operation must keep
 one refund in the simulator's ledger. Other seeded cases cover an expired return
