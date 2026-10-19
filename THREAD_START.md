@@ -35,6 +35,14 @@ Default to the independent persistent local payment simulator. Enforce the plan'
 unit reservations, minor-unit amounts, permissions, transitions, outbox atomicity,
 stable keys, and unknown-outcome recovery. Add focused checks with each feature.
 
+Build and use the plan's reproducible environment lifecycle from PR 1 onward.
+Preflight dependencies, supervise startup with readiness checks, and run integration
+and full-stack browser checks on unique disposable resources. Preserve the run's
+databases during restart-recovery checks, then tear down in finally/interruption
+handlers. Verify abandoned-run recovery, keep diagnostics bounded, preserve demo
+data on normal shutdown, and report created/removed/retained resources at handoff.
+Do not use global Docker or shared-cache pruning to clean up development work.
+
 Use only project-owned local services and disposable data. Do not touch production,
 live databases, existing daily-driver previews, or sibling projects. Scope resets
 explicitly. No external accounts, real payments, or public hosting are required.

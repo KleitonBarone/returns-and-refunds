@@ -2,16 +2,18 @@
 
 ## Starting point and completion
 
-As of October 19, 2026, the repository contains planning documents only. The
-starting commit is `f5cd68a`, the default branch is `main`, and there are no
-application services, migrations, tests, CI workflows, issues, or previous PRs.
+As of October 19, 2026, the repository contains planning documents only. Planning
+started at `f5cd68a`, and the initial plan was merged through GitHub PR #1 as
+`6448a3d`. The default branch is `main`. There are no application services,
+migrations, tests, or CI workflows yet.
 
-This plan contains one documentation PR and nine implementation PRs with 22
-proposed implementation commits. Real PR numbers, commit hashes, check results,
-and merge timestamps must be recorded as work finishes, never invented.
+This plan contains the documentation delivery and nine implementation PRs with 23
+proposed implementation commits. The PR labels below describe delivery order,
+not assigned GitHub numbers. Record real PR numbers, commit hashes, check results,
+and merge timestamps as work finishes, never invent them.
 
-The current request authorizes completing, committing, pushing, and merging the
-documentation PR. Application implementation starts in a later execution run.
+The current work extends the planning documents through a follow-up documentation
+PR. Application implementation starts in a later execution run.
 
 Build a local portfolio application for Kleiton, a senior engineer in Brazil
 targeting international remote roles. Recruiters should recognize the commerce
@@ -57,6 +59,126 @@ chargebacks, multi-currency accounting, AI decisions, and a general integration
 platform. A Stripe test adapter and optional delivery through the separate webhook
 project can follow later, behind settings and documented HTTP contracts. Keep
 this repository independently runnable.
+
+## Reliable development and test environments
+
+Build the environment lifecycle in PR 1 and extend it as services arrive. Keep it
+in small repository scripts and Compose configuration, not a general environment
+management service. All commands in this section are planned, not available yet.
+
+### Setup and isolation
+
+- Add `pnpm env:doctor` for read-only checks of pinned Node/pnpm versions, required
+  configuration, WSL Ubuntu, the Docker endpoint and Compose, port availability,
+  and free disk space. Once browser tests exist, check the pinned Chromium install.
+  Report missing prerequisites precisely without installing global tools, changing
+  Docker contexts, altering WSL settings, or printing secrets.
+- Run Docker through WSL Ubuntu on this machine. Select one OS for Node, pnpm,
+  and browser execution and document it; do not duplicate installs across Windows
+  and WSL or share their `node_modules`. Verify actual host-to-WSL connectivity
+  from the application process. Linux CI uses its own Docker transport with the
+  same pinned dependencies, configuration contract, and test scripts.
+- Give interactive development a stable project identity and persistent, explicitly
+  named demo volumes. Give each integration/E2E run a unique identity such as
+  `codex-returns-test-<run-id>`, fresh disposable databases/volumes, and assigned
+  ports. Never reuse a developer database, daily-driver preview, or external volume.
+  Two test runs must not collide with each other or development.
+- Before creating resources, record the baseline and write a small run manifest
+  under ignored `.local/runs/<run-id>`. Record ownership labels, Docker endpoint,
+  Compose project/files, resource IDs, process identities, ports, temporary paths,
+  and source SHA, without credentials. Record new resources as they are created,
+  so a partial startup can be cleaned up. Labels and a stale PID alone are not
+  sufficient proof that a resource or process is still owned by the run.
+- Reuse the pinned PostgreSQL image and existing dependency/browser caches. Start
+  one PostgreSQL instance per environment with separate app/simulator databases,
+  adding the simulator database in PR 4. Set explicit container memory/CPU and
+  connection-pool limits, then record measured settings adequate for these tests.
+  Start with one browser worker; add concurrency only when measurements justify it.
+
+### Startup and end-to-end checks
+
+- `pnpm dev` supervises project services and prints their actual URLs and personas.
+  Wait for database readiness, apply migrations, and create missing initial demo
+  fixtures before API/web startup. Never reseed existing demo progress implicitly.
+  Add simulator and worker readiness as those services arrive.
+  Use bounded readiness probes for schema, seed, and service identity rather than
+  sleeps or treating an open port as proof of readiness. Failed startup cleans up
+  what it created and reports the failed dependency.
+- `pnpm test:integration` owns its disposable PostgreSQL fixtures and any simulator
+  processes it needs. `pnpm test:e2e`, introduced in PR 7, builds the current tree
+  and starts a complete isolated web/API/worker/PostgreSQL/simulator environment.
+  The runner owns startup, migrations, seed, checks, diagnostics, and teardown.
+  Bind the browser's base URL to that run's manifest and reject unrelated services.
+  Do not silently reuse an already-running web server.
+- Pin Playwright with its matching Chromium browser for automated journeys. Run
+  through the real UI, API, worker, database, and simulator HTTP contract without
+  mocking refund persistence. Inspect the same isolated environment manually in
+  the collaborative preview when diagnosing behavior, using a tab created for
+  the task. Allow an explicit debug pause for this inspection, with cleanup when
+  resumed or cancelled. Close that tab afterward. Keep automated runs headless.
+- Cover customer request, support approval, warehouse inspection, finance refund,
+  lost-response recovery, and the blocked cases already defined in the PR gates.
+  Restart services while preserving that run's databases to prove recovery; only
+  teardown afterward. Observe worker progress through explicit probes/barriers,
+  including separate application and simulator ledger assertions.
+- Local and CI runs use the same entry points, fixed fixtures/clock, timeouts, and
+  financial assertions. Reproduce failures from the recorded source SHA and run
+  configuration. Do not turn retries into proof that an intermittent failure is
+  harmless. Preserve useful failure evidence before releasing resources.
+
+### Cleanup throughout development
+
+- Register cleanup before starting services, using `try/finally` and interruption
+  handling, plus an always-run CI cleanup step. Supervise and stop child process
+  trees, file watchers, workers, browser contexts, and run-owned proxy processes.
+  Verify Windows cancellation behavior explicitly; do not rely on Unix signals.
+  Use a bounded graceful shutdown, then terminate only processes whose ownership
+  can still be verified. Never kill all Node/browser processes or kill by port.
+- Test teardown uses the same Docker endpoint, explicit Compose project, and files
+  as startup. Remove that run's containers, networks, and disposable volumes with
+  scoped `down --volumes --remove-orphans`. Verify they are gone and ports released.
+  Clean up after success, assertion failure, timeout, or interrupted startup. A hard
+  kill may skip handlers; the next run reports unfinished manifests for recovery.
+- Provide `pnpm dev:down` to stop project development processes/containers/networks
+  while preserving demo volumes. Provide `pnpm env:clean` to inspect a specified
+  abandoned run, preview its exact targets, and apply cleanup only after validating
+  ownership and that it is inactive. Make reruns safe. Reused PIDs, active runs, and
+  ambiguous resources must be refused and reported rather than guessed.
+- Keep database reset separate from shutdown and temporary cleanup. Only the
+  verified paired `pnpm demo:reset` flow may replace persistent demo data. Leave
+  services running at handoff only when Kleiton requested a persistent preview;
+  otherwise stop them and report any deliberately retained project demo volumes.
+- Rotate container logs at 5 MiB per file with three files. Successful test runs
+  replace the latest small result summary. Retain detailed logs, screenshots, and
+  traces only for the latest failed run, capped at 100 MiB. Avoid routine video
+  recording. Remove completed run directories after verified cleanup and evidence
+  retention; preserve unfinished manifests until their resources are resolved.
+  Report omitted oversized diagnostics. CI failure artifacts expire after seven
+  days. Explicitly promoted portfolio evidence is preserved separately.
+- Reuse dependencies across runs. Remove run-owned temporary reports, build output,
+  rehearsal checkouts, and downloads when no longer needed. Resolve absolute paths
+  and verify they are within the recorded temporary/workspace directories before
+  removal. Preserve source, `.env`, the lockfile, workspace dependencies, promoted
+  evidence, and pre-existing shared package/browser caches. Install only Chromium
+  for the initial browser suite instead of downloading every browser engine.
+- If image builds are needed, use a task-specific disposable Buildx builder without
+  changing the default. Remove its exact builder/cache and task-created image tags
+  afterward; remove newly pulled images only when no longer needed or used elsewhere.
+  Avoid global Docker pruning, shared-cache pruning, stopping unrelated containers,
+  WSL shutdown, and WSL disk compaction. Record intentionally retained image/cache
+  dependencies so retained disk use is understandable.
+- At each development handoff, report created/removed/retained resources and verify
+  no task-owned processes, ports, containers, networks, disposable volumes, or
+  builders remain. Check disk usage when pulling/building large images. Report
+  cleanup failures as unfinished work; never turn a passing test into a clean
+  completion report if its teardown failed.
+
+Acceptance for the environment includes two consecutive isolated runs with the
+same results, a deliberately failed/interrupted startup, and cleanup of an
+abandoned run. Compare before/after resources and verify an unrelated marked
+fixture and persistent demo data remain intact. These checks start in PR 1 with
+the available services and expand to the complete stack in PR 7. PR 8's scenario
+reset does not substitute for this earlier lifecycle work.
 
 ## Business and recovery contracts
 
@@ -177,12 +299,15 @@ Depends on PR 0.
 
 1. `Set up the typed web and server workspace`
 2. `Add isolated PostgreSQL setup and initial migrations`
-3. `Document development commands and add CI checks`
+3. `Add reproducible environment checks and scoped teardown`
+4. `Document development commands and add CI checks`
 
 Create the web/API shell, validated configuration, health/readiness endpoints,
 local proxy/origin rules, and merchant/user/membership/customer/order/line/unit
 schema. Add migrations, deterministic seed data, application identity markers,
 `.env.example`, pinned tools, and the lockfile. Keep services bound locally.
+Implement the environment manifest, preflight, process supervision, isolated test
+resources, and cleanup commands defined above before routine verification begins.
 
 Add root scripts `pnpm check`, `pnpm test`, `pnpm test:integration`, `pnpm build`,
 and `pnpm dev`. `check` covers types, lint, and formatting. Later PRs add meaningful
@@ -193,6 +318,9 @@ database constraints, without placeholder success tests.
 Merge gate: clean install, migration, seed, database readiness, startup, and CI
 work on isolated resources. Check migration/seed reruns and record the actual
 commands, selected versions, ports, and Windows/WSL prerequisites.
+Demonstrate repeatable integration runs, failed/interrupted startup cleanup,
+preserved development data, and absence of leftover run-owned resources. Record
+baseline/remaining resources and validate the intended Windows/WSL workflow.
 
 ### PR 2. Deliver customer requests and the merchant queue
 
@@ -245,6 +373,8 @@ Implement the small adapter contract, separate migrations, captured-payment seed
 durable key/payload records, ledger, lookup/diagnostics, failure controls, and
 persistent signed event delivery. Enforce merchant/payment identity and capture
 limits inside the simulator. Document the HTTP contract and reset boundary.
+Extend the environment runner with simulator migration/seed, readiness, correlated
+diagnostics, and teardown without granting app SQL access to the provider ledger.
 
 Merge gate: direct contract tests prove same-key replay, conflicting payloads,
 concurrent submission, capture limits, terminal rejection, retryable pre-write
@@ -312,6 +442,10 @@ Merge gate: browser journeys cover the full partial return with recovery and an
 expired request. Add only distinct extra journeys as needed. Inspect keyboard-only
 completion, desktop/narrow layouts, in-flight actions, validation, and service
 errors. Save screenshots and actual results on isolated local demo data.
+Introduce the self-contained `pnpm test:e2e` runner defined above, use its full
+stack in local and CI checks, and inspect it manually through the task preview.
+Two fresh runs must pass, a deliberate failure must retain bounded diagnostics,
+and interruption/abandoned-run cleanup must release the complete test environment.
 
 ### PR 8. Make scenarios and reset repeatable
 
@@ -336,6 +470,8 @@ arbitrary connection strings. Fail visibly if a paired reset is incomplete.
 Merge gate: two reset/seed/demo runs produce equivalent financial assertions.
 Unmarked disposable fixtures fail reset checks before modification. Verify restart
 recovery separately from reset so clearing a ledger cannot hide duplicates.
+Use the existing environment lifecycle; keep repeatable demo reset separate from
+automatic test teardown, development shutdown, and failed-run artifact cleanup.
 
 ### PR 9. Publish the portfolio handoff and verify main
 
@@ -361,6 +497,8 @@ Merge gate: rehearse install, migration, seed, checks, demo, and shutdown from a
 separate clean checkout with its own ports/databases. Verify media links and the
 final acceptance list. After merge, check the final remote SHA in a clean checkout
 and rerun final checks there. Report blockers instead of claiming completion.
+Include environment recovery/cleanup instructions and retained disk-use details
+in the handoff. Remove task-owned rehearsal resources after recording evidence.
 
 ## Commit, push, review, and merge protocol
 
@@ -372,6 +510,8 @@ subjects. A commit alone, a pushed branch, or an open PR is not a completed deli
    against current docs and merged PRs.
 2. Implement the slice and relevant tests. Inspect each diff and stage explicit
    paths. Commit logical changes with their migrations, lockfiles, and docs.
+   Use the environment lifecycle for verification from PR 1 onward and confirm
+   teardown after each run, including failures, before claiming its checks passed.
 3. Before opening, fetch and merge latest `origin/main` into the branch. Resolve
    conflicts and rerun affected checks on that tree. Incorporate latest main even
    when the branch was originally created from main; avoid rewriting pushed history.
@@ -390,7 +530,7 @@ subjects. A commit alone, a pushed branch, or an open PR is not a completed deli
    preserving the implementation commits. Use
    `gh pr merge <url> --merge --match-head-commit <reviewed-sha>` without admin
    bypass. Otherwise request authorization for the concrete reviewed PR. This
-   turn explicitly authorizes PR 0's merge.
+   planning delivery includes the authorized documentation PR merges.
 8. Verify GitHub reports `MERGED` and a merge SHA. Fetch, fast-forward local main,
    confirm that SHA is contained in `origin/main`, and perform the relevant
    post-merge check. Keep a clean worktree. Clean up only merged task branches if
@@ -398,6 +538,8 @@ subjects. A commit alone, a pushed branch, or an open PR is not a completed deli
 9. Record real PR URLs, commit SHAs, validation, and merge results. Stop any T3
    watcher when handing back and confirm every worked-on PR is linked to the
    thread. Start the next implementation branch only after the previous PR merges.
+   Report cleanup and retained resources at handoff; release disposable resources
+   before starting another PR so successive slices do not accumulate environments.
 
 Use the PR title for its merge commit. Fix-commit subjects and counts depend on
 observed issues. A changed head or new failure needs fresh evidence; repeated green
@@ -408,7 +550,8 @@ smoke checks without a new reason do not.
 The named scripts are planned contracts, not commands that exist today:
 
 - PR 1 onward: `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm test`,
-  `pnpm test:integration`, `pnpm build`, and documented database/dev commands.
+  `pnpm test:integration`, `pnpm build`, `pnpm env:doctor`, `pnpm dev`,
+  `pnpm dev:down`, and scoped `pnpm env:clean`, plus documented database commands.
 - PR 2 onward: pure policy/money tests and real PostgreSQL tests for isolation,
   unit claims, permissions, concurrent decisions, and business/audit atomicity.
 - PRs 4-6 onward: HTTP contract tests, independent persistent-ledger assertions,
@@ -453,9 +596,13 @@ the earlier feature tests; PRs 8-9 deliver repeatable evidence and portfolio han
 
 ## Delivery log
 
-PR 0 starts from `f5cd68a` on `docs/complete-delivery-plan`. Report its real URL,
-commit, checks, and merge SHA after delivery. GitHub's merged PR record is
-authoritative; this file cannot contain its own future merge SHA.
+Delivery PR 0 was [GitHub PR #1](https://github.com/KleitonBarone/returns-and-refunds/pull/1),
+on `docs/complete-delivery-plan` from `f5cd68a`. Commit `d890dfc` passed documentation
+structure/link/whitespace checks and merged as `6448a3d` on October 19, 2026.
+The environment/cleanup refinement follows on `docs/test-environment-cleanup`.
+Report its actual commit, PR URL, checks, and merge result after delivery.
+GitHub's merged PR record is authoritative; this file cannot contain its own
+future merge SHA.
 
 PRs 1-9 are planned with no assigned PR numbers or implementation commits. During
 each PR, add its URL, branch, included commits, and actual checks here. Include
@@ -468,6 +615,15 @@ record this documentation PR's merge SHA.
   merged, with their URLs, commits, and final checks accounted for.
 - [ ] A clean checkout runs with documented local prerequisites and no sibling
   repository, paid account, real credentials, or existing development environment.
+- [ ] A documented preflight and supervised startup produce an identifiable,
+  ready environment. Full-stack browser checks use isolated fixtures and ports
+  with real API/worker/PostgreSQL/simulator behavior locally and in CI.
+- [ ] Repeated runs, failed/interrupted startup, and abandoned-run recovery leave
+  no run-owned processes, listeners, containers, networks, disposable volumes, or
+  builders. Unrelated resources and persistent demo data survive cleanup.
+- [ ] Logs, traces, screenshots, CI artifacts, and temporary builds/checkouts have
+  bounded retention. The handoff lists intentionally retained volumes/images/caches
+  and verifies cleanup rather than hiding leftover resources after passing tests.
 - [ ] Customer, support, warehouse, and finance complete the partial-return flow
   with the correct amount, policy explanation, history, and recovery action.
 - [ ] Customer ownership and merchant/role isolation hold for reads and mutations.
@@ -490,6 +646,10 @@ record this documentation PR's merge SHA.
 - [Vite setup](https://vite.dev/guide/)
 - [Fastify TypeScript reference](https://fastify.dev/docs/latest/Reference/TypeScript/)
 - [PostgreSQL row locking](https://www.postgresql.org/docs/current/explicit-locking.html)
+- [Docker Compose readiness](https://docs.docker.com/compose/how-tos/startup-order/)
+- [Docker Compose teardown](https://docs.docker.com/reference/cli/docker/compose/down/)
+- [Playwright web server ownership](https://playwright.dev/docs/test-webserver)
+- [Playwright CI setup](https://playwright.dev/docs/ci)
 - [GitHub PR merge requirements](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request)
 - [Stripe idempotency semantics](https://docs.stripe.com/api/idempotent_requests)
 - [Stripe webhook behavior](https://docs.stripe.com/webhooks)
