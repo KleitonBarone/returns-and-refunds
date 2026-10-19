@@ -1,185 +1,499 @@
-# Returns and refunds implementation plan
+# Returns and refunds delivery plan
 
-## Purpose and audience
+## Starting point and completion
 
-Build a merchant console that handles one complete return: customer request,
-policy decision, warehouse inspection, and refund. The product should explain
-what happened to an order and what an operator should do next.
+As of October 19, 2026, the repository contains planning documents only. The
+starting commit is `f5cd68a`, the default branch is `main`, and there are no
+application services, migrations, tests, CI workflows, issues, or previous PRs.
 
-Recruiters should recognize commerce and financial operations immediately.
-Engineers should be able to examine money calculations, concurrent updates,
-state transitions, and recovery when a payment result is uncertain.
+This plan contains one documentation PR and nine implementation PRs with 22
+proposed implementation commits. Real PR numbers, commit hashes, check results,
+and merge timestamps must be recorded as work finishes, never invented.
 
-This is a local portfolio simulation. Orders, people, items, payments, and
-businesses are fictional. No sales, customer interviews, paid integrations,
-or movement of real money is required.
+The current request authorizes completing, committing, pushing, and merging the
+documentation PR. Application implementation starts in a later execution run.
 
-## Smallest complete product
+Build a local portfolio application for Kleiton, a senior engineer in Brazil
+targeting international remote roles. Recruiters should recognize the commerce
+workflow. Engineers should be able to inspect money calculations, authorization,
+concurrent updates, transaction boundaries, and uncertain payment outcomes.
 
-Use one fictional clothing merchant and a second merchant for isolation checks.
-The MVP supports a customer portal, an operator queue, and a warehouse inspection
-view. Seed operators with support, warehouse, and finance permissions.
+The product includes a customer portal, merchant queue, warehouse inspection,
+and finance workflow for fictional orders. Its central demonstration follows a
+partial return through approval, inspection, a successful simulated refund whose
+response is lost, and recovery that leaves one refund in the provider ledger.
 
-Each return selects specific order units and a reason. Fix the demonstration
-policy at a 30-day window using UTC instants and an injectable clock. Return
-eligibility must not depend on the operator's browser clock. Keep a snapshot of
-the applied policy with the decision.
+Completion means working local software, focused verification, repeatable
+scenarios, screenshots, an English walkthrough of roughly 90 seconds, and a case
+study, with every delivery PR merged into `main`. Public hosting is optional future
+work. A merged PR does not imply a deployed site.
 
-Use `requested`, `approved`, `received`, `inspection_passed`, `inspection_failed`,
-and `closed` for the return workflow, plus an explicit rejection decision. Keep
-refund state separate: `pending`, `processing`, `succeeded`, `failed`, or `unknown`.
-A timeout is uncertain, not proof that the provider rejected the refund.
+## Architecture and scope
 
-Use one currency per order and integer minor units for money. The first policy
-refunds the stored net merchandise value for approved units. Exclude shipping,
-tax calculation, currency conversion, and exchanges from the MVP. Reject excess
-unit quantities and any refund total above the original captured amount.
+- Use pnpm, strict TypeScript, React/Vite, Tailwind, TanStack Query, Fastify,
+  PostgreSQL, Drizzle migrations, and ArkType at boundaries. Confirm compatible
+  versions against official documentation in PR 1 and pin tools, dependencies,
+  and the database image. Derive types rather than duplicating request shapes.
+- Start with `apps/web`, `apps/server`, and `packages/contracts`. Keep domain rules
+  and API/worker entry points in the same server codebase, with migrations under
+  `apps/server/db`. Add `apps/simulator` in PR 4, `scripts` for scenarios, and
+  `docs/evidence` for verification. Avoid unused packages and abstractions.
+- Use a PostgreSQL outbox and worker, without a broker. The independent simulator
+  exposes HTTP submission, status lookup, and diagnostics. It owns a separate
+  persistent database and credentials. The application cannot read its SQL ledger.
+- Use one project-owned PostgreSQL instance with separate application and simulator
+  databases. Tests use separate disposable databases. No sibling checkout, paid
+  account, external authentication account, or payment credentials are required.
+- Use synthetic server sessions with a local persona picker. Seed support,
+  warehouse, and finance users, two merchants, two customers in the primary
+  merchant, and a customer in the second merchant. This is demo authentication.
+- Reserve UI `4320`, API `4321`, simulator `4322`, and PostgreSQL `55432`. Verify
+  availability before starting. Follow Docker-through-WSL instructions on this
+  Windows machine. Name project containers, volumes, and databases explicitly.
+  Do not stop existing services or borrow another project's preview or data.
 
-## Starting architecture
+Exclude live payments, a storefront, shipping labels, procurement, exchanges,
+chargebacks, multi-currency accounting, AI decisions, and a general integration
+platform. A Stripe test adapter and optional delivery through the separate webhook
+project can follow later, behind settings and documented HTTP contracts. Keep
+this repository independently runnable.
 
-- Use pnpm, strict TypeScript, React/Vite, Tailwind, and TanStack Query.
-- Use a small Fastify API, PostgreSQL, and typed queries or Drizzle migrations.
-- Validate boundary input with ArkType. Derive internal types instead of adding
-  `any`, casts, or duplicated hand-maintained request shapes.
-- Run refund processing in a worker from the same codebase. Persist refund intent
-  and an outbox entry with the business transaction before contacting a provider.
-- Define a small payment adapter for refund submission and status lookup. A local
-  simulator is the default implementation and owns its own refund ledger.
-- Use synthetic server sessions with a local persona picker. Enforce workspace,
-  order ownership, and operator permissions in the API.
+## Business and recovery contracts
 
-Start with merchants, users, memberships, customer accounts, orders, order lines,
-return requests/items, inspections, refund operations, provider receipts, outbox
-records, processed webhook receipts, and audit entries. Add them by milestone.
-The simulator's independent ledger is needed to observe a provider-side success
-even when the application never receives the response.
+These decisions resolve ambiguities before implementation. Changes require an
+explanation in the affected PR and corresponding code, test, and plan updates.
 
-Reserve UI port 4320, API port 4321, simulator port 4322, and database port 55432.
-These are planned defaults to verify when scaffolding. Keep databases, storage,
-and local reset commands independent of the other projects.
+### Eligibility, units, and money
 
-## Local simulation and failure scenarios
+- Use a 30-day window from stored `deliveredAt` UTC time. Accept through exactly
+  `deliveredAt + 30 days`; reject later or future-dated deliveries. The server uses
+  an injectable clock and snapshots the policy version, decision time, deadline,
+  and selected unit values. Browser clocks never decide eligibility.
+- Seed dates relative to a controlled demo clock. Display a fixed clock explicitly
+  in the interface so seeded scenarios do not silently expire as real time passes.
+- Use integer minor units and one currency per order. Store each purchased unit's
+  allocated net merchandise value, distributing discount remainders deterministically
+  so unit values sum to the line value. Validate safe integer ranges. Exclude
+  shipping refunds, tax calculation, and currency conversion. Reject zero refunds.
+- Customers select line quantities; the server reserves underlying unit identities.
+  Reject empty selections, invalid quantities, unowned lines, and units already
+  reserved or refunded. Previously refunded units remain permanently consumed.
+- Lock the order before checking units or refund capacity. Use a consistent lock
+  order and a database constraint preventing multiple active claims on a unit.
+  Release claims on rejection or failed inspection. Keep historical claim records.
+- Across an order, succeeded refunds plus unresolved refund intents cannot exceed
+  its captured amount. Unknown outcomes keep their amount and units reserved.
+  Never authorize a new refund by counting only successful earlier refunds.
+- Retrying the same customer submission returns its original request. Reusing the
+  request key with different content conflicts; it cannot reserve more units.
 
-Seed a normal partial return, a request outside the return window, a failed
-inspection, a retryable refund failure, and an uncertain refund result. Include
-multiple quantities, previously returned units, and a second merchant.
+### Permissions and return transitions
 
-The payment simulator needs bounded controls for:
+Derive actor, merchant membership, and customer ownership from the server session,
+never trusted request fields. Scope lists, detail reads, and mutations accordingly.
+Customers access their own requests; support decides; warehouse staff receive and
+inspect; finance submits and recovers eligible refunds.
 
-- Immediate success and terminal rejection.
-- A retryable failure before recording a refund.
-- Recording a successful refund and dropping or delaying the response.
-- Duplicate and delayed signed status events.
+1. Valid submission creates `requested` and reserves selected units.
+2. Support approval moves `requested` to `approved`. Rejection closes the return
+   with a persisted rejection decision/reason and releases its units.
+3. Warehouse receipt moves `approved` to `received`.
+4. Inspection records `inspection_passed` or `inspection_failed`. One verdict
+   covers the request's units for the MVP; mixed verdicts are future work.
+5. A failed inspection closes with an inspection-failure reason and releases units
+   in the same transaction. Preserve the inspection result in history.
+6. A passed inspection stays open until refund success closes it with a refunded
+   reason and permanently consumes its units.
 
-Persist idempotency records in the simulator so an application or simulator
-restart does not silently allow a second refund. Retrying the same operation uses
-the same key and payload. A different payload with that key is a conflict. A new
-operator action must not bypass an unresolved earlier operation.
+Use conditional updates or locked rows to reject competing/stale decisions. Audit
+actor, reason, previous/resulting state, and correlation IDs in the business
+transaction. A failed write must leave neither partial state nor a success entry.
 
-For duplicate or out-of-order events, verify the signature, record the receipt,
-and apply a permitted state transition in one transaction. Query the simulator
-when needed to resolve ambiguous status; never overwrite `succeeded` with an
-older `processing` event. Preserve provider identity and operation correlation.
+Refund state is separate: `pending`, `processing`, `succeeded`, `failed`, or
+`unknown`. A timeout means `unknown`. A confirmed terminal rejection means
+`failed`; the MVP does not create a replacement operation for it. Its units remain
+held pending a future explicit resolution flow. A retryable pre-write failure
+retries the original operation rather than creating a new one.
 
-A reset replaces only this project's explicitly disposable demo data, including
-the paired simulator ledger. Require environment and database identity checks;
-do not truncate an arbitrary database given through a connection string.
+### Payment processing and events
 
-## Milestones
+- Persist one refund operation per return with immutable amount, currency,
+  merchant, payment reference, stable idempotency key, and payload fingerprint.
+- Commit its capacity reservation, audit entry, and outbox job in one transaction
+  before contacting the provider. Never hold that transaction across HTTP.
+- Claim jobs with a bounded lease and ownership token, persist attempts/backoff,
+  reclaim dead workers' jobs, and prevent stale workers from overwriting a newer
+  attempt. Repeated HTTP submissions must use the same key and payload.
+- The simulator atomically persists idempotency records and ledger entries. The
+  same key/payload returns the existing operation; different content conflicts.
+  Records survive simulator and application restarts until an explicit demo reset.
+- Simulator controls cover success, terminal rejection, retryable failure before
+  the financial write, success with a dropped/delayed response, and duplicate or
+  delayed signed events. Persist scheduled deliveries and keep controls local.
+  Sign each delivery at send time, separately from the event's occurrence time,
+  so delayed events remain verifiable while stale delivery signatures are rejected.
+- Status lookup works by the stable key even when no provider receipt reached the
+  application. Recover unknown outcomes through lookup and, where the contract
+  permits, resubmission with that same key. A finance click cannot bypass an
+  unresolved operation with a new one. Unavailable lookup preserves uncertainty.
+- Verify signed events over raw bytes with timestamp tolerance. Validate provider,
+  merchant, operation, amount, and currency. Persist the unique provider/event
+  receipt and business effects atomically before acknowledging delivery. Unmatched
+  events cannot create financial operations.
+- Duplicate events have no repeated business/audit effect. Older `processing`
+  events cannot downgrade success. Resolve contradictory terminal events through
+  provider lookup rather than trusting arrival order.
+- Expose an inspectable simulator ledger through a diagnostic endpoint. Compare
+  application state with that independent ledger in tests and demo evidence.
 
-### 1. Foundation and return request
+These guarantees depend on the simulator contract. Do not claim universal
+exactly-once behavior across external payment systems. A later adapter must define
+its own idempotency retention, lookup, and event behavior.
 
-- [ ] Scaffold web/API/PostgreSQL and initial migrations.
-- [ ] Add synthetic sessions and seed orders for two merchants.
-- [ ] Build order lookup within the customer session and submit a partial return.
-- [ ] Show that request in the authorized merchant's operator queue.
-- [ ] Record verified local setup, migration, seed, development, and check commands.
+## PR sequence and proposed commits
 
-Done when the customer can request a valid return and the server rejects excess
-quantities, an expired window, and another customer's order.
+Execute sequentially from latest merged `main`, without a speculative stack.
+Each numbered item below is a proposed commit subject, using the repository's
+existing plain descriptive style. Fix commits depend on actual review findings.
+Adjust commit boundaries only when it makes the real change easier to review.
 
-### 2. Approval and warehouse inspection
+### PR 0. Complete this delivery plan
 
-- [ ] Build the return detail screen, decision reasons, and item history.
-- [ ] Add support approval/rejection and warehouse receipt/inspection actions.
-- [ ] Validate transitions and permissions on the server.
-- [ ] Protect concurrent decisions and overlapping requests for the same units.
-- [ ] Commit audit entries with their corresponding business state changes.
+Branch: `docs/complete-delivery-plan`.
+PR title: `Complete the returns and refunds delivery plan`.
 
-Done when a partial return reaches a finance-ready state and two requests cannot
-reserve or refund the same order units through a race.
+1. `Complete the returns and refunds delivery plan`
 
-### 3. Refund submission and recovery
+Expand this plan with contracts, PRs, commits, checks, and push/merge steps. Align
+README and the handoff. Verify local links, coverage, and the diff. Open a draft
+documentation PR, register it with T3, mark it ready after review, and actually
+merge it. Verify GitHub and local/remote `main`. Do not claim application tests.
 
-- [ ] Add the independent local payment simulator and its inspectable ledger.
-- [ ] Add refund intent, transactional outbox, worker, and stable idempotency keys.
-- [ ] Support provider status lookup and recovery from an unknown result.
-- [ ] Verify signed simulator events and deduplicate receipt/business writes.
-- [ ] Show refund history, failure details, and a safe recovery action in the UI.
+### PR 1. Establish the local foundation
 
-Done when a response can be lost after provider success, the app and simulator can
-restart, and recovery still leaves one financial refund in the simulator ledger.
-The guarantee depends on the adapter/provider contract; do not claim universal
-exactly-once behavior across external payment systems.
+Branch: `feat/local-foundation`.
+PR title: `Add the local application foundation`.
+Depends on PR 0.
 
-### 4. Focused verification and interface quality
+1. `Set up the typed web and server workspace`
+2. `Add isolated PostgreSQL setup and initial migrations`
+3. `Document development commands and add CI checks`
 
-- [ ] Test policy boundaries, minor-unit arithmetic, totals, and repeated returns.
-- [ ] Use PostgreSQL tests for concurrent decisions, outbox atomicity, and receipts.
-- [ ] Test duplicate submission, lost acknowledgement, restart, and delayed events.
-- [ ] Add browser journeys for a valid partial return and a blocked request.
-- [ ] Check keyboard access, action confirmation, narrow layouts, and clear states.
+Create the web/API shell, validated configuration, health/readiness endpoints,
+local proxy/origin rules, and merchant/user/membership/customer/order/line/unit
+schema. Add migrations, deterministic seed data, application identity markers,
+`.env.example`, pinned tools, and the lockfile. Keep services bound locally.
 
-Use a controlled clock and injected failures rather than slow sleeps. Validate
-both application state and the independent simulator ledger. Keep correctness
-checks separate from performance measurements.
+Add root scripts `pnpm check`, `pnpm test`, `pnpm test:integration`, `pnpm build`,
+and `pnpm dev`. `check` covers types, lint, and formatting. Later PRs add meaningful
+suites to these commands. CI uses disposable PostgreSQL, applies migrations, and
+runs the checks and build. Initial suites verify configuration rejection and
+database constraints, without placeholder success tests.
 
-### 5. Portfolio handoff
+Merge gate: clean install, migration, seed, database readiness, startup, and CI
+work on isolated resources. Check migration/seed reruns and record the actual
+commands, selected versions, ports, and Windows/WSL prerequisites.
 
-- [ ] Add a repeatable local scenario runner and scoped demo reset.
-- [ ] Record an English walkthrough of roughly 90 seconds.
-- [ ] Capture the return queue, decision history, and refund recovery screens.
-- [ ] Write a case study explaining uncertain outcomes and the chosen transaction
-  boundaries, including what the simulator does not prove.
-- [ ] Rehearse setup from a clean checkout and publish actual commands and limits.
+### PR 2. Deliver customer requests and the merchant queue
 
-Public hosting is optional future work. The completed local simulation, recorded
-demo, and readable evidence are the deliverables for this plan.
+Branch: `feat/customer-return-requests`.
+PR title: `Let customers request partial returns`.
+Depends on PR 1. Completes original milestone 1.
+
+1. `Add demo sessions and customer order access`
+2. `Create eligible return requests with unit reservations`
+3. `Show customer requests in the merchant queue`
+
+Implement persona switching, scoped order lookup, policy snapshots, request/item
+storage, active claims, submission deduplication, and transactional audit. Build
+quantity/reason selection, confirmation, customer status, and the merchant queue
+with loading, empty, blocked, and error states.
+
+Merge gate: a valid partial request appears for its merchant. Test UTC boundaries,
+future delivery dates, minor-unit allocation, invalid quantities, another customer,
+cross-merchant access, repeated submission, and concurrent overlapping requests
+against PostgreSQL. Only one competing request can claim the same units.
+
+### PR 3. Complete decisions and warehouse inspection
+
+Branch: `feat/return-decisions`.
+PR title: `Add return approval and warehouse inspection`.
+Depends on PR 2. Completes original milestone 2.
+
+1. `Add authorized decisions and inspection transitions`
+2. `Show return history and role-specific actions`
+
+Add decision/inspection storage, return details, actor/reason history, approval,
+rejection, receipt, pass/fail inspection, and finance readiness. Commit transition,
+audit, and claim release atomically. Explain conflicting operator actions.
+
+Merge gate: a return reaches `inspection_passed`; rejection and failed inspection
+close with explicit reasons. Test permissions, allowed/forbidden transitions,
+competing decisions, rollback, released claims, and previously consumed units.
+Verify the customer and authorized operators can follow the result.
+
+### PR 4. Add the persistent payment simulator
+
+Branch: `feat/payment-simulator`.
+PR title: `Add a persistent local refund simulator`.
+Depends on PR 3.
+
+1. `Add refund submission and lookup to the local simulator`
+2. `Add persistent failure controls and signed simulator events`
+
+Implement the small adapter contract, separate migrations, captured-payment seeds,
+durable key/payload records, ledger, lookup/diagnostics, failure controls, and
+persistent signed event delivery. Enforce merchant/payment identity and capture
+limits inside the simulator. Document the HTTP contract and reset boundary.
+
+Merge gate: direct contract tests prove same-key replay, conflicting payloads,
+concurrent submission, capture limits, terminal rejection, retryable pre-write
+failure, success with lost response, and restart persistence. Count ledger entries
+independently. Verify event generation here; application consumption is PR 6.
+
+### PR 5. Submit refunds through the outbox
+
+Branch: `feat/refund-processing`.
+PR title: `Process refunds with durable operations and an outbox`.
+Depends on PR 4.
+
+1. `Create authorized refund intents with atomic outbox writes`
+2. `Process refund operations with durable worker leases`
+3. `Show refund submission and operation status`
+
+Add operations, provider receipts, jobs, attempts, keys, and finance submission.
+Check inspection readiness, per-return uniqueness, and order-wide reserved amounts
+under the order lock. Implement worker lifecycle, lease expiry, retry timing, and
+fenced writes using the real simulator HTTP adapter. Add amount confirmation and
+basic status/error feedback. Unknown outcomes remain visible/reserved until PR 6.
+
+Merge gate: operation/outbox/audit rollback together; competing submissions create
+one intent; overlapping refunds cannot exceed capture; dead workers' jobs recover;
+duplicate delivery creates one ledger refund. Lost responses become `unknown`,
+terminal rejection becomes `failed`, and success atomically closes the return and
+consumes its units.
+
+### PR 6. Recover uncertain outcomes and consume events
+
+Branch: `feat/refund-recovery`.
+PR title: `Recover uncertain refunds without issuing duplicates`.
+Depends on PR 5. Completes original milestone 3.
+
+1. `Recover unknown refunds through stable operation lookup`
+2. `Apply signed provider events with atomic receipt handling`
+3. `Expose refund history and safe finance recovery actions`
+
+Add same-operation recovery, signed receipt handling/deduplication, guarded refund
+transitions, contradictory-event lookup, and finance history. Explain checking
+status versus retrying the same operation. Terminal rejection cannot be blindly
+retried. Concurrent recovery clicks refresh the same operation.
+
+Merge gate: lose a response after provider success, restart API/worker/simulator
+without resetting data, and recover one ledger refund. Cover the crash between
+provider success and application acknowledgement, duplicate/delayed events, invalid
+signatures/timestamps, mismatched merchant/amount/operation, and event/API races.
+Unavailable lookup retains `unknown`; success never regresses. Assert both ledgers.
+
+### PR 7. Finish the interface and browser journeys
+
+Branch: `feat/operations-interface`.
+PR title: `Finish the customer and operator workflows`.
+Depends on PR 6. Completes original milestone 4 with earlier correctness tests.
+
+1. `Refine queue navigation and return recovery feedback`
+2. `Verify accessible customer and operator journeys`
+
+Refine queue filters, navigation, next actions, readable amounts/times, histories,
+confirmations, keyboard focus, labels, and narrow layouts. Explain retryable,
+terminal, and unknown outcomes and the synthetic environment without putting
+database or worker details into product flows.
+
+Merge gate: browser journeys cover the full partial return with recovery and an
+expired request. Add only distinct extra journeys as needed. Inspect keyboard-only
+completion, desktop/narrow layouts, in-flight actions, validation, and service
+errors. Save screenshots and actual results on isolated local demo data.
+
+### PR 8. Make scenarios and reset repeatable
+
+Branch: `feat/repeatable-demo`.
+PR title: `Add repeatable scenarios and a scoped demo reset`.
+Depends on PR 7.
+
+1. `Add deterministic demo scenarios and isolated reset checks`
+2. `Record financial and recovery verification evidence`
+
+Add `pnpm demo:run`, `pnpm demo:verify`, and `pnpm demo:reset`. Seed normal,
+expired, inspection-failure, retryable, unknown, previously-returned-unit, and
+second-merchant cases. Use controlled clocks/failure barriers rather than sleeps.
+Record operation IDs, app amounts, provider ledger counts, and event outcomes
+with tool versions, excluding credentials and session tokens.
+
+Reset quiesces project workers/deliveries, verifies both configured database
+identities, paired environment, and disposable-demo markers before any writes,
+then replaces only project demo data including the simulator ledger. Refuse
+arbitrary connection strings. Fail visibly if a paired reset is incomplete.
+
+Merge gate: two reset/seed/demo runs produce equivalent financial assertions.
+Unmarked disposable fixtures fail reset checks before modification. Verify restart
+recovery separately from reset so clearing a ledger cannot hide duplicates.
+
+### PR 9. Publish the portfolio handoff and verify main
+
+Branch: `docs/portfolio-handoff`.
+PR title: `Document and demonstrate the completed returns workflow`.
+Depends on PR 8. Completes original milestone 5.
+
+1. `Add the walkthrough and refund recovery case study`
+2. `Verify clean-checkout setup and close the delivery plan`
+
+Replace README's planned setup with verified prerequisites and commands. Add
+screenshots, architecture/transaction explanations, and the roughly 90-second
+English demonstration below. Capture locally with a reproducible recording
+workflow. If narration requires Kleiton, prepare the script and capture and record
+narration as outstanding, rather than claiming a finished video. Link large media
+through an appropriate artifact/release location and verify access.
+
+Write the case study with actual local evidence and simulator limitations, without
+customer-impact or provider-certification claims. Update the handoff and delivery
+status. Hosting remains optional and requires separate scope.
+
+Merge gate: rehearse install, migration, seed, checks, demo, and shutdown from a
+separate clean checkout with its own ports/databases. Verify media links and the
+final acceptance list. After merge, check the final remote SHA in a clean checkout
+and rerun final checks there. Report blockers instead of claiming completion.
+
+## Commit, push, review, and merge protocol
+
+Apply this to every PR, including PR 0. Preserve the repository's plain descriptive
+subjects. A commit alone, a pushed branch, or an open PR is not a completed delivery.
+
+1. Inspect status and active Git operations; preserve unrelated work. Fetch origin,
+   fast-forward local `main`, and create the planned branch. Confirm the next scope
+   against current docs and merged PRs.
+2. Implement the slice and relevant tests. Inspect each diff and stage explicit
+   paths. Commit logical changes with their migrations, lockfiles, and docs.
+3. Before opening, fetch and merge latest `origin/main` into the branch. Resolve
+   conflicts and rerun affected checks on that tree. Incorporate latest main even
+   when the branch was originally created from main; avoid rewriting pushed history.
+4. Push with `git push -u origin <branch>`. Check for an existing PR first. Create
+   a draft against `main` using its planned title, a short problem/solution, actual
+   validation, and material limits. Use a body file for multiline text. Immediately
+   register the real URL through T3's `link_pull_request` and record it in the log.
+5. Inspect CI and reviews on the latest pushed head. Verify bot findings against
+   source, fix real defects, and explain false positives. Gather unresolved human
+   comments for Kleiton's input. Never bypass checks or review requirements. Use
+   T3's watcher if waiting is needed, and resume on its notification.
+6. Commit/push necessary fixes and rerun affected checks. Inspect new findings.
+   If main advances, merge it again, push, and verify the new head before merging.
+7. After the PR's gate and repository requirements pass, mark it ready. When the
+   execution run authorizes merging, actually merge on GitHub with a merge commit
+   preserving the implementation commits. Use
+   `gh pr merge <url> --merge --match-head-commit <reviewed-sha>` without admin
+   bypass. Otherwise request authorization for the concrete reviewed PR. This
+   turn explicitly authorizes PR 0's merge.
+8. Verify GitHub reports `MERGED` and a merge SHA. Fetch, fast-forward local main,
+   confirm that SHA is contained in `origin/main`, and perform the relevant
+   post-merge check. Keep a clean worktree. Clean up only merged task branches if
+   needed. Do not push directly to main to simulate a PR merge.
+9. Record real PR URLs, commit SHAs, validation, and merge results. Stop any T3
+   watcher when handing back and confirm every worked-on PR is linked to the
+   thread. Start the next implementation branch only after the previous PR merges.
+
+Use the PR title for its merge commit. Fix-commit subjects and counts depend on
+observed issues. A changed head or new failure needs fresh evidence; repeated green
+smoke checks without a new reason do not.
+
+## Verification and evidence
+
+The named scripts are planned contracts, not commands that exist today:
+
+- PR 1 onward: `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm test`,
+  `pnpm test:integration`, `pnpm build`, and documented database/dev commands.
+- PR 2 onward: pure policy/money tests and real PostgreSQL tests for isolation,
+  unit claims, permissions, concurrent decisions, and business/audit atomicity.
+- PRs 4-6 onward: HTTP contract tests, independent persistent-ledger assertions,
+  outbox leases/retries, crash windows, unknown outcomes, and signed receipts.
+- PR 7 onward: `pnpm test:e2e` on isolated services/data. Browser journeys prove
+  user flows; they do not replace database race tests.
+- PR 8 onward: `pnpm demo:run` and `pnpm demo:verify` produce evidence independently
+  of the explicitly destructive, scoped `pnpm demo:reset` command.
+
+Inject clocks, worker stepping, and network failure points. Use separate PostgreSQL
+connections and explicit transaction barriers for races, avoiding slow sleeps.
+Check upgrades from the previous schema when migrations change persisted data.
+CI must exercise real PostgreSQL and simulator behavior where needed.
+
+Every feature PR includes its correctness checks immediately. PR 7 adds browser
+and interface coverage; PR 8 assembles repeatable evidence. Neither defers earlier
+financial or authorization correctness. Keep tests focused on behavior and failure
+boundaries. Distinguish demonstrated infrastructure flakes from product failures.
 
 ## Demonstration script
 
-1. As a customer, request a return for one unit from a multi-unit order.
-2. As support, review the policy and approve that unit with an explanation.
-3. As warehouse staff, record receipt and a passing inspection.
-4. Trigger a simulated provider success with a lost response, leaving an uncertain
-   result visible to finance.
-5. Recover using the same operation, show one provider ledger entry, and replay a
-   duplicate signed event without changing the refund total.
+1. Introduce the fictional merchant and local demo environment.
+2. As a customer, return one unit from a multi-unit order. Show its amount and
+   remaining eligible quantities.
+3. As support, review the policy snapshot and approve with a reason.
+4. As warehouse staff, record receipt and a passing inspection.
+5. As finance, confirm the amount. The simulator records success and drops the
+   response, leaving a visible `unknown` result.
+6. Restart services without clearing data. Recover the original operation, show
+   one provider ledger entry, and replay a duplicate event without changing funds.
+7. End on decision/refund history and the documented simulation limits.
 
-## Relationship to the webhook project
+Other scenarios cover expired requests, failed inspection, retryable failure,
+wrong customer/merchant, and delayed status events.
 
-This repository must run on its own with its own local simulator. A later optional
-adapter can use the separate webhook service to deliver simulator status events.
-Keep this integration behind a setting and a documented HTTP contract; do not
-import another repository's internals or require sibling checkouts for setup.
+## Milestone mapping
 
-## Scope boundaries and evidence
+The original five milestones remain covered. PRs 1-2 deliver the foundation and
+return request; PR 3 delivers approval and inspection; PRs 4-6 deliver refund
+submission and recovery; PR 7 completes interface/browser verification alongside
+the earlier feature tests; PRs 8-9 deliver repeatable evidence and portfolio handoff.
 
-Exclude live payment credentials, a storefront, inventory procurement, shipping
-labels, multi-currency accounting, chargebacks, exchanges, AI decision making,
-and a general integration platform.
+## Delivery log
 
-Success means the scenarios are repeatable, unauthorized actors cannot change
-returns, the local financial invariants hold under injected failures, and the UI
-explains each outcome. Report author-performed local checks, not customer savings,
-production transaction volumes, or actual payment-provider certification.
+PR 0 starts from `f5cd68a` on `docs/complete-delivery-plan`. Report its real URL,
+commit, checks, and merge SHA after delivery. GitHub's merged PR record is
+authoritative; this file cannot contain its own future merge SHA.
 
-## Development references
+PRs 1-9 are planned with no assigned PR numbers or implementation commits. During
+each PR, add its URL, branch, included commits, and actual checks here. Include
+prior merge metadata in the next log update. Do not create another PR merely to
+record this documentation PR's merge SHA.
+
+## Final acceptance
+
+- [ ] All planned capabilities exist on remote main and all delivery PRs are
+  merged, with their URLs, commits, and final checks accounted for.
+- [ ] A clean checkout runs with documented local prerequisites and no sibling
+  repository, paid account, real credentials, or existing development environment.
+- [ ] Customer, support, warehouse, and finance complete the partial-return flow
+  with the correct amount, policy explanation, history, and recovery action.
+- [ ] Customer ownership and merchant/role isolation hold for reads and mutations.
+  Competing requests/decisions/refunds preserve units, capture limits, and audit.
+- [ ] Lost responses and service restarts recover the original operation, leaving
+  one financial refund under the documented simulator contract.
+- [ ] Duplicate, delayed, invalid, and mismatched events neither duplicate funds
+  nor regress success. Unknown outcomes keep their reservations.
+- [ ] Reset refuses unmarked databases and changes only the paired disposable
+  project environment. Repeated scenarios produce the documented assertions.
+- [ ] Desktop, narrow layouts, keyboard flows, and error states are inspected.
+  Required checks and browser journeys pass on the final merged tree.
+- [ ] Verified README setup, screenshots, an English walkthrough, a case study,
+  and scenario evidence are available and accurately describe local simulation.
+- [ ] No invented customer outcomes, production volumes, real-provider
+  certification, application completion, or public deployment are claimed.
+
+## References
 
 - [Vite setup](https://vite.dev/guide/)
 - [Fastify TypeScript reference](https://fastify.dev/docs/latest/Reference/TypeScript/)
+- [PostgreSQL row locking](https://www.postgresql.org/docs/current/explicit-locking.html)
+- [GitHub PR merge requirements](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request)
 - [Stripe idempotency semantics](https://docs.stripe.com/api/idempotent_requests)
 - [Stripe webhook behavior](https://docs.stripe.com/webhooks)
 
-Stripe's documentation is a reference for an optional future test adapter. The
-local simulator has its own documented contract and is not a Stripe emulator.
+Stripe documentation informs a future adapter. The simulator has its own contract
+and is not a Stripe emulator. Never touch production, live databases, or existing
+daily-driver build/preview channels without explicit environment authorization.
