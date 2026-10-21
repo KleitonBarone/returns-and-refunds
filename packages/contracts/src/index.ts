@@ -27,6 +27,54 @@ export const actorContract = type({
   customerId: "string | null",
 });
 export type Actor = typeof actorContract.infer;
+export const returnActions = [
+  {
+    name: "approve",
+    role: "support",
+    from: "requested",
+    to: "approved",
+    label: "Approve return",
+    event: "Return approved",
+  },
+  {
+    name: "reject",
+    role: "support",
+    from: "requested",
+    to: "closed",
+    label: "Reject request",
+    event: "Return rejected",
+  },
+  {
+    name: "receive",
+    role: "warehouse",
+    from: "approved",
+    to: "received",
+    label: "Record receipt",
+    event: "Return received",
+  },
+  {
+    name: "pass_inspection",
+    role: "warehouse",
+    from: "received",
+    to: "inspection_passed",
+    label: "Pass inspection",
+    event: "Inspection passed",
+  },
+  {
+    name: "fail_inspection",
+    role: "warehouse",
+    from: "received",
+    to: "inspection_failed",
+    label: "Fail inspection",
+    event: "Inspection failed",
+  },
+] as const;
+export const actionInput = type({
+  action: type.enumerated(...returnActions.map((action) => action.name)),
+  expectedStatus: type.enumerated(...returnStates),
+  reason: "3 <= string <= 500",
+  correlationId: "string.uuid",
+}).onDeepUndeclaredKey("reject");
 export const sessionContract = type({
   actor: actorContract.or("null"),
   personas: actorContract.array(),
@@ -65,6 +113,7 @@ export const returnSummaryContract = type({
   customerName: "string",
   reason: "string",
   status: type.enumerated(...returnStates),
+  closureReason: "string | null",
   amountMinor: "number",
   currency: "string",
   requestedAt: "string",
@@ -87,6 +136,14 @@ export const returnDetailContract = returnSummaryContract.and({
     at: "string",
     fromStatus: "string | null",
     toStatus: "string",
+    correlationId: "string",
+  }).array(),
+  reviews: type({
+    kind: "'decision' | 'inspection'",
+    outcome: "'approved' | 'rejected' | 'passed' | 'failed'",
+    reason: "string",
+    actorName: "string",
+    at: "string",
   }).array(),
 });
 export type ReturnView = typeof returnDetailContract.infer;

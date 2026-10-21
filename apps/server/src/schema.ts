@@ -11,6 +11,7 @@ import {
   timestamp,
   unique,
   uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { returnStates, roles } from "../../../packages/contracts/src/index.ts";
 
@@ -134,6 +135,7 @@ export const returnRequests = pgTable(
     fingerprint: text().notNull(),
     reason: text().notNull(),
     status: returnState().notNull().default("requested"),
+    closureReason: text(),
     amountMinor: integer().notNull(),
     currency: text().notNull(),
     requestedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
@@ -164,6 +166,8 @@ export const returnUnits = pgTable(
 );
 export const auditEntries = pgTable("audit_entries", {
   id: text().primaryKey(),
+  sequence: integer().generatedAlwaysAsIdentity(),
+  correlationId: uuid().notNull().defaultRandom(),
   returnId: text()
     .notNull()
     .references(() => returnRequests.id),
@@ -179,3 +183,25 @@ export const auditEntries = pgTable("audit_entries", {
   toStatus: text().notNull(),
   at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
 });
+export const returnReviews = pgTable(
+  "return_reviews",
+  {
+    returnId: text()
+      .notNull()
+      .references(() => returnRequests.id),
+    kind: text({ enum: ["decision", "inspection"] }).notNull(),
+    outcome: text({ enum: ["approved", "rejected", "passed", "failed"] }).notNull(),
+    reason: text().notNull(),
+    actorId: text()
+      .notNull()
+      .references(() => users.id),
+    at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.returnId, t.kind] }),
+    check(
+      "review_outcome_matches_kind",
+      sql`(${t.kind} = 'decision' and ${t.outcome} in ('approved', 'rejected')) or (${t.kind} = 'inspection' and ${t.outcome} in ('passed', 'failed'))`,
+    ),
+  ],
+);

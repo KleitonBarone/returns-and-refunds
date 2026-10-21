@@ -2,10 +2,11 @@ import cookie from "@fastify/cookie";
 import { type } from "arktype";
 import { eq } from "drizzle-orm";
 import Fastify from "fastify";
-import { requestInput, sessionInput } from "../../../packages/contracts/src/index.ts";
+import { actionInput, requestInput, sessionInput } from "../../../packages/contracts/src/index.ts";
 import { createSession, listPersonas, requireActor, sessionActor } from "./actors.ts";
 import type { readConfig } from "./config.ts";
 import type { Database } from "./db.ts";
+import { decideReturn } from "./decisions.ts";
 import { HttpError } from "./domain.ts";
 import { listOrders, listReturns, requestReturn, returnDetail } from "./returns.ts";
 import { environmentIdentity } from "./schema.ts";
@@ -61,6 +62,12 @@ export async function createApp(db: Database, config: ReturnType<typeof readConf
     if (input instanceof type.errors) throw new HttpError(400, input.summary);
     const result = await requestReturn(db, actor, input, config.demoNow);
     return reply.code(201).send(result);
+  });
+  app.post<{ Params: { id: string } }>("/api/returns/:id/actions", async (request) => {
+    const actor = requireActor(await sessionActor(db, request));
+    const input = actionInput(request.body);
+    if (input instanceof type.errors) throw new HttpError(400, input.summary);
+    return decideReturn(db, actor, request.params.id, input, config.demoNow);
   });
   app.get("/api/health", async () => {
     const [identity] = await db
