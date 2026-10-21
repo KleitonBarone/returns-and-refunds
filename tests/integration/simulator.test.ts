@@ -288,13 +288,14 @@ describe("persistent HTTP payment simulator", () => {
     await receiver.listen({ port: Number(new URL(config.webhookUrl).port), host: "127.0.0.1" });
     try {
       expect((await request("/control/deliver", { refundId: receipt.id }, true)).status).toBe(200);
-      expect(received).toHaveLength(1);
-      expect(providerEvent.assert(JSON.parse(received[0]?.raw ?? "null")).refund.status).toBe(
-        "processing",
-      );
+      expect(received).toHaveLength(0);
       const later = Date.now() + 60001;
       const restarted = connectSimulator(config.databaseUrl);
       try {
+        expect(
+          (await deliverNext(restarted.db, config, { now: later, refundId: receipt.id }))
+            ?.delivered,
+        ).toBe(true);
         expect(
           (await deliverNext(restarted.db, config, { now: later, refundId: receipt.id }))
             ?.delivered,
@@ -316,9 +317,11 @@ describe("persistent HTTP payment simulator", () => {
         expect(Math.abs(Date.now() / 1000 - Number(delivery.timestamp))).toBeLessThan(5);
         return providerEvent.assert(JSON.parse(delivery.raw));
       });
-      expect(events[1]?.id).toBe(events[2]?.id);
-      expect(events[1]?.occurredAt).toBe(config.demoNow);
-      expect(events[1]?.refund.status).toBe("succeeded");
+      expect(events.filter((event) => event.refund.status === "processing")).toHaveLength(1);
+      const terminal = events.filter((event) => event.refund.status === "succeeded");
+      expect(terminal).toHaveLength(2);
+      expect(terminal[0]?.id).toBe(terminal[1]?.id);
+      expect(terminal.every((event) => event.occurredAt === config.demoNow)).toBe(true);
       const stored = await db.select().from(deliveries).where(eq(deliveries.refundId, receipt.id));
       expect(stored.every((delivery) => delivery.deliveredAt && delivery.attempts === 1)).toBe(
         true,

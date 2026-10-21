@@ -146,7 +146,7 @@ export async function submitRefund(
       tx,
       { ...receipt, status: "processing", failureCode: null },
       occurredAt,
-      0,
+      control?.eventDelayMs ?? 0,
       1,
     );
     await enqueueEvents(
