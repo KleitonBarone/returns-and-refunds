@@ -10,6 +10,7 @@ import {
   orders,
   orderUnits,
   returnRequests,
+  returnReviews,
   returnUnits,
   users,
 } from "./schema.ts";
@@ -70,6 +71,7 @@ const summaryFields = {
   customerName: users.name,
   reason: returnRequests.reason,
   status: returnRequests.status,
+  closureReason: returnRequests.closureReason,
   amountMinor: returnRequests.amountMinor,
   currency: returnRequests.currency,
   requestedAt: returnRequests.requestedAt,
@@ -121,12 +123,24 @@ export async function returnDetail(db: Database, actor: Actor, id: string) {
       at: auditEntries.at,
       fromStatus: auditEntries.fromStatus,
       toStatus: auditEntries.toStatus,
+      correlationId: auditEntries.correlationId,
     })
     .from(auditEntries)
     .innerJoin(users, eq(users.id, auditEntries.actorId))
     .where(eq(auditEntries.returnId, id))
-    .orderBy(asc(auditEntries.at), asc(auditEntries.id));
-  return { ...summary, items, history };
+    .orderBy(asc(auditEntries.sequence));
+  const reviews = await db
+    .select({
+      kind: returnReviews.kind,
+      outcome: returnReviews.outcome,
+      reason: returnReviews.reason,
+      actorName: users.name,
+      at: returnReviews.at,
+    })
+    .from(returnReviews)
+    .innerJoin(users, eq(users.id, returnReviews.actorId))
+    .where(eq(returnReviews.returnId, id));
+  return { ...summary, items, history, reviews };
 }
 export async function requestReturn(
   db: Database,
@@ -239,6 +253,7 @@ export async function requestReturn(
       .values(selected.map((unit) => ({ returnId, unitId: unit.id, amountMinor: unit.netMinor })));
     await tx.insert(auditEntries).values({
       id: randomUUID(),
+      correlationId: input.requestKey,
       returnId,
       merchantId: actor.merchantId,
       actorId: actor.id,

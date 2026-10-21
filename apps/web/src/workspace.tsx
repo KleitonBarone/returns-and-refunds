@@ -9,6 +9,7 @@ import {
   returnDetailContract,
   returnsContract,
 } from "../../../packages/contracts/src/index.ts";
+import { ReturnActions } from "./actions.tsx";
 import { api } from "./api.ts";
 
 export function date(value: string) {
@@ -147,7 +148,7 @@ function ReturnForm({ order, onCreated }: { order: OrderView; onCreated: (id: st
   );
 }
 
-export function ReturnDetail({ request }: { request: ReturnView }) {
+export function ReturnDetail({ request, actor }: { request: ReturnView; actor: Actor }) {
   return (
     <section className="detail-pane" aria-labelledby="return-title">
       <div className="pane-heading">
@@ -169,6 +170,27 @@ export function ReturnDetail({ request }: { request: ReturnView }) {
           <dd>{money(request.amountMinor, request.currency)}</dd>
         </div>
       </dl>
+      {request.closureReason && (
+        <div className="notice notice-warning">
+          <strong>
+            {request.closureReason === "rejected"
+              ? "Request rejected"
+              : "Return closed after failed inspection"}
+          </strong>
+          <p>
+            {
+              request.reviews.find(
+                (review) => review.outcome === "rejected" || review.outcome === "failed",
+              )?.reason
+            }
+          </p>
+        </div>
+      )}
+      {request.status === "inspection_passed" && (
+        <div className="notice notice-info">
+          Inspection passed. This return is ready for finance to review the refund.
+        </div>
+      )}
       <h3>Return reason</h3>
       <p>{request.reason}</p>
       <h3>Selected items</h3>
@@ -192,6 +214,7 @@ export function ReturnDetail({ request }: { request: ReturnView }) {
         </p>
         <span>{request.policyVersion}</span>
       </div>
+      <ReturnActions key={`${request.id}-${request.status}`} actor={actor} request={request} />
       <h3>Decision history</h3>
       <ol className="timeline">
         {request.history.map((event) => (
@@ -199,7 +222,7 @@ export function ReturnDetail({ request }: { request: ReturnView }) {
             <strong>{event.event}</strong>
             <p>{event.reason}</p>
             <small>
-              {event.actorName}, {date(event.at)}
+              {event.actorName}, {dateTime(event.at)}
             </small>
           </li>
         ))}
@@ -329,7 +352,7 @@ export function Workspace({ actor }: { actor: Actor }) {
               }}
             />
           ) : detail.data ? (
-            <ReturnDetail request={detail.data} />
+            <ReturnDetail request={detail.data} actor={actor} />
           ) : detail.isFetching ? (
             <section className="detail-pane" role="status">
               Loading return…

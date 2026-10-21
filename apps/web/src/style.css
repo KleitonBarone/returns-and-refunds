@@ -399,6 +399,32 @@ textarea {
   padding: 0 0 0 17px;
   border-left: 2px solid #dbe5ed;
 }
+.action-panel {
+  border-top: 1px solid #dbe5ed;
+  margin-top: 25px;
+}
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.action-buttons .primary {
+  width: auto;
+}
+.danger-secondary {
+  color: #943d36;
+  border-color: #dfbcb6;
+}
+.confirmation {
+  border: 1px solid #dbe5ed;
+  min-width: 0;
+  padding: 16px;
+  background: #f3f6f8;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 16px;
+}
 .timeline li {
   padding: 0 0 24px 14px;
   position: relative;
