@@ -17,6 +17,99 @@ const explanations = {
   unknown:
     "The response was lost. The refund may have succeeded, so its amount and items remain reserved until a status check.",
 };
+function RecoveryActions({ request }: { request: ReturnView }) {
+  const client = useQueryClient();
+  const [reason, setReason] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const recover = useMutation({
+    mutationFn: async (action: "check" | "retry") =>
+      returnDetailContract.assert(
+        await api(`/returns/${request.id}/refund/${action}`, {
+          reason,
+          correlationId: crypto.randomUUID(),
+        }),
+      ),
+    onSuccess: async () => {
+      setConfirming(false);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["return"] }),
+        client.invalidateQueries({ queryKey: ["returns"] }),
+      ]);
+    },
+  });
+  if (!request.refund || !["unknown", "processing"].includes(request.refund.status)) return null;
+  return (
+    <div className="refund-recovery">
+      <h4>Check the original refund</h4>
+      <p>
+        Ask the payment service for its current status. The amount and items stay reserved until the
+        outcome is confirmed.
+      </p>
+      <label className="field">
+        Recovery reason
+        <textarea
+          maxLength={500}
+          value={reason}
+          disabled={recover.isPending}
+          placeholder="Record why you are checking this refund."
+          onChange={(event) => {
+            setReason(event.target.value);
+            setConfirming(false);
+            recover.reset();
+          }}
+        />
+      </label>
+      <div className="action-buttons">
+        <button
+          type="button"
+          disabled={reason.trim().length < 3 || recover.isPending}
+          onClick={() => recover.mutate("check")}
+        >
+          {recover.isPending && recover.variables === "check"
+            ? "Checking payment…"
+            : "Check payment status"}
+        </button>
+        {request.refund.status === "unknown" &&
+          request.refund.lastLookup === "not_found" &&
+          !confirming && (
+            <button
+              type="button"
+              disabled={reason.trim().length < 3 || recover.isPending}
+              onClick={() => setConfirming(true)}
+            >
+              Retry original refund
+            </button>
+          )}
+      </div>
+      {confirming && (
+        <fieldset className="confirmation" aria-label="Confirm original refund retry">
+          <strong>
+            Retry the original {money(request.refund.amountMinor, request.refund.currency)} refund?
+          </strong>
+          <p>The payment service did not find it. This queues the same refund again.</p>
+          <div className="action-buttons">
+            <button
+              type="button"
+              className="primary"
+              disabled={reason.trim().length < 3 || recover.isPending}
+              onClick={() => recover.mutate("retry")}
+            >
+              {recover.isPending ? "Queuing original refund…" : "Confirm original refund retry"}
+            </button>
+            <button type="button" disabled={recover.isPending} onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </div>
+        </fieldset>
+      )}
+      {recover.isError && (
+        <p className="error" role="alert">
+          {recover.error.message}
+        </p>
+      )}
+    </div>
+  );
+}
 export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnView }) {
   const client = useQueryClient();
   const [reason, setReason] = useState("");
@@ -56,6 +149,24 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
         {request.refund.providerReceiptId && (
           <small>Payment receipt {request.refund.providerReceiptId}</small>
         )}
+        {request.refund.checkedAt && (
+          <small>
+            Last checked{" "}
+            {new Intl.DateTimeFormat("en-US", {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZone: "UTC",
+            }).format(new Date(request.refund.checkedAt))}{" "}
+            UTC
+          </small>
+        )}
+        {actor.role === "finance" && (
+          <details className="payment-reference">
+            <summary>Payment reference</summary>
+            <small>Refund operation {request.refund.id}</small>
+          </details>
+        )}
+        {actor.role === "finance" && <RecoveryActions request={request} />}
       </section>
     );
   if (actor.role !== "finance" || request.status !== "inspection_passed") return null;

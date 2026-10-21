@@ -1,25 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray, isNull, lte, ne, or } from "drizzle-orm";
-import { money } from "../../../packages/contracts/src/index.ts";
+import { and, asc, eq, inArray, isNull, lte, or } from "drizzle-orm";
 import type { Database } from "./db.ts";
 import { REFUND_PROCESSOR } from "./domain.ts";
-import {
-  type PaymentProvider,
-  payloadFingerprint,
-  receiptMatches,
-  type SubmissionOutcome,
-} from "./provider.ts";
+import { type PaymentProvider, payloadFingerprint, type SubmissionOutcome } from "./provider.ts";
+import { applyRefundOutcome, validReceipt } from "./refund-state.ts";
 import { lockRefundOperation } from "./refunds.ts";
-import {
-  auditEntries,
-  orderUnits,
-  refundAttempts,
-  refundJobs,
-  refundOperations,
-  refundReceipts,
-  returnRequests,
-  returnUnits,
-} from "./schema.ts";
+import { auditEntries, refundAttempts, refundJobs, refundOperations } from "./schema.ts";
 
 export const REFUND_LEASE_MS = 10000;
 export async function claimRefundJob(
@@ -134,7 +120,8 @@ export async function completeRefundJob(
   now = Date.now(),
 ) {
   return db.transaction(async (tx) => {
-    const { operation, request } = await lockRefundOperation(tx, claim.operationId);
+    const context = await lockRefundOperation(tx, claim.operationId);
+    const { operation } = context;
     const [job] = await tx
       .select()
       .from(refundJobs)
@@ -155,60 +142,14 @@ export async function completeRefundJob(
       return { applied: false };
     }
     let outcome = submitted;
-    if (outcome.kind === "receipt") {
-      const [previous] = await tx
-        .select()
-        .from(refundReceipts)
-        .where(eq(refundReceipts.operationId, operation.id));
-      const [reused] = await tx
-        .select()
-        .from(refundReceipts)
-        .where(
-          and(
-            eq(refundReceipts.providerId, outcome.receipt.id),
-            ne(refundReceipts.operationId, operation.id),
-          ),
-        );
-      if (
-        !receiptMatches(claim.payload, outcome.receipt) ||
-        (previous && previous.providerId !== outcome.receipt.id) ||
-        reused
-      )
-        outcome = {
-          kind: "unknown",
-          message:
-            "The payment service returned a conflicting refund identity. A status check is required.",
-        };
-    }
-    const status =
-      outcome.kind === "receipt"
-        ? outcome.receipt.status
-        : outcome.kind === "retryable"
-          ? "pending"
-          : "unknown";
-    const message =
-      outcome.kind !== "receipt"
-        ? outcome.message
-        : status === "failed"
-          ? "The payment service rejected this refund. It cannot be submitted again."
-          : null;
-    if (outcome.kind === "receipt")
-      await tx
-        .insert(refundReceipts)
-        .values({
-          operationId: operation.id,
-          providerId: outcome.receipt.id,
-          receipt: outcome.receipt,
-          observedAt: instant,
-        })
-        .onConflictDoUpdate({
-          target: refundReceipts.operationId,
-          set: { receipt: outcome.receipt, observedAt: instant },
-        });
-    await tx
-      .update(refundOperations)
-      .set({ status, lastError: message, updatedAt: businessNow })
-      .where(eq(refundOperations.id, operation.id));
+    if (outcome.kind === "receipt" && !(await validReceipt(tx, operation, outcome.receipt)))
+      outcome = {
+        kind: "unknown",
+        message:
+          "The payment service returned a conflicting refund identity. A status check is required.",
+      };
+    const result = await applyRefundOutcome(tx, context, outcome, businessNow, now);
+    const message = outcome.kind === "receipt" ? null : outcome.message;
     await tx
       .update(refundJobs)
       .set({
@@ -228,62 +169,7 @@ export async function completeRefundJob(
         message,
       })
       .where(eq(refundAttempts.id, claim.attemptId));
-    if (status === "succeeded") {
-      if (request.status !== "inspection_passed")
-        throw new Error("Refund success requires an inspected return");
-      const units = await tx
-        .select({ id: returnUnits.unitId })
-        .from(returnUnits)
-        .where(eq(returnUnits.returnId, request.id));
-      if (!units.length) throw new Error("Refund return has no units");
-      await tx
-        .update(orderUnits)
-        .set({ consumed: 1 })
-        .where(
-          inArray(
-            orderUnits.id,
-            units.map((unit) => unit.id),
-          ),
-        );
-      await tx
-        .update(returnUnits)
-        .set({ active: false })
-        .where(eq(returnUnits.returnId, request.id));
-      await tx
-        .update(returnRequests)
-        .set({ status: "closed", closureReason: "refunded" })
-        .where(eq(returnRequests.id, request.id));
-    }
-    const event =
-      status === "pending"
-        ? "Refund will retry"
-        : status === "unknown"
-          ? "Refund outcome unknown"
-          : status === "failed"
-            ? "Refund failed"
-            : status === "succeeded"
-              ? "Refund succeeded"
-              : "Refund processing confirmed";
-    await tx.insert(auditEntries).values({
-      id: randomUUID(),
-      operationId: operation.id,
-      correlationId: operation.correlationId,
-      returnId: request.id,
-      merchantId: operation.merchantId,
-      actorId: REFUND_PROCESSOR.id,
-      event,
-      reason:
-        message ??
-        (status === "succeeded"
-          ? `Confirmed ${money(operation.amountMinor, operation.currency)} refund.`
-          : "The payment service accepted the refund for processing."),
-      fromStatus: request.status,
-      toStatus: status === "succeeded" ? "closed" : request.status,
-      refundFromStatus: operation.status,
-      refundToStatus: status,
-      at: businessNow,
-    });
-    return { applied: true, status };
+    return { applied: true, status: result.status };
   });
 }
 export async function processRefundJob(

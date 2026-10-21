@@ -35,6 +35,7 @@ const manifestType = type({
   "simulatorDbPort?": "number",
   "simulatorPid?": "number.integer > 0",
   "workerPid?": "number.integer > 0",
+  "apiPid?": "number.integer > 0",
   state: "'starting' | 'running' | 'cleaning' | 'failed'",
   dockerEndpoint: "string",
   subnet: "string",
@@ -363,6 +364,31 @@ async function foreground(manifest: Manifest, args: string[], env: NodeJS.Proces
     );
   });
 }
+export async function launchApi(manifest: Manifest, env: NodeJS.ProcessEnv) {
+  const child = await launch(
+    manifest,
+    ["--import", "tsx", "apps/server/src/api.ts"],
+    applicationEnvironment(env),
+  );
+  manifest.apiPid = child.pid;
+  await save(manifest);
+  await waitFor(
+    `http://127.0.0.1:${manifest.apiPort}/api/health`,
+    (body) => healthResponse.allows(body) && body.runId === manifest.id,
+  );
+  return child;
+}
+export async function restartApi(manifest: Manifest, env: NodeJS.ProcessEnv) {
+  const previous = manifest.children.find((child) => child.pid === manifest.apiPid);
+  if (!previous || !(await matches(previous))) throw new Error("API process ownership mismatch");
+  process.kill(previous.pid, "SIGTERM");
+  const deadline = Date.now() + 10000;
+  while (await matches(previous)) {
+    if (Date.now() >= deadline) throw new Error("API did not stop for restart");
+    await delay(100);
+  }
+  await launchApi(manifest, env);
+}
 export async function restartSimulator(manifest: Manifest, env: NodeJS.ProcessEnv) {
   const previous = manifest.children.find((child) => child.pid === manifest.simulatorPid);
   if (!previous || !(await matches(previous)))
@@ -665,15 +691,7 @@ export async function runEnvironment(
         env,
       );
     else {
-      const api = await launch(
-        manifest,
-        ["--import", "tsx", "apps/server/src/api.ts"],
-        applicationEnvironment(env),
-      );
-      await waitFor(
-        `http://127.0.0.1:${apiPort}/api/health`,
-        (body) => healthResponse.allows(body) && body.runId === id,
-      );
+      const api = await launchApi(manifest, env);
       const web = await launch(
         manifest,
         ["node_modules/vite/bin/vite.js", "--config", "apps/web/vite.config.ts"],

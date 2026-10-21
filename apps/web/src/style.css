@@ -411,6 +411,19 @@ textarea {
   border-radius: 7px;
   font-size: 13px;
 }
+.refund-recovery {
+  margin-top: 18px;
+  border-top: 1px solid #cdd9df;
+  padding-top: 16px;
+}
+.payment-reference {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.refund-panel small {
+  display: block;
+  overflow-wrap: anywhere;
+}
 .refund-panel .amount-line {
   margin: 0 0 12px;
   align-items: center;

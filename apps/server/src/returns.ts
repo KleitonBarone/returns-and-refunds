@@ -99,70 +99,77 @@ export async function listReturns(db: Database, actor: Actor) {
     .orderBy(desc(returnRequests.requestedAt));
 }
 export async function returnDetail(db: Database, actor: Actor, id: string) {
-  const [summary] = await db
-    .select(summaryFields)
-    .from(returnRequests)
-    .leftJoin(refundOperations, eq(refundOperations.returnId, returnRequests.id))
-    .innerJoin(orders, eq(orders.id, returnRequests.orderId))
-    .innerJoin(customers, eq(customers.id, returnRequests.customerId))
-    .innerJoin(users, eq(users.id, customers.userId))
-    .where(and(returnScope(actor), eq(returnRequests.id, id)));
-  if (!summary) throw new HttpError(404, "Return not found");
-  const items = await db
-    .select({
-      unitId: returnUnits.unitId,
-      amountMinor: returnUnits.amountMinor,
-      name: orderLines.name,
-      variant: orderLines.variant,
-    })
-    .from(returnUnits)
-    .innerJoin(orderUnits, eq(orderUnits.id, returnUnits.unitId))
-    .innerJoin(orderLines, eq(orderLines.id, orderUnits.lineId))
-    .where(eq(returnUnits.returnId, id));
-  const history = await db
-    .select({
-      id: auditEntries.id,
-      actorName: users.name,
-      event: auditEntries.event,
-      reason: auditEntries.reason,
-      at: auditEntries.at,
-      fromStatus: auditEntries.fromStatus,
-      toStatus: auditEntries.toStatus,
-      correlationId: auditEntries.correlationId,
-      operationId: auditEntries.operationId,
-      refundFromStatus: auditEntries.refundFromStatus,
-      refundToStatus: auditEntries.refundToStatus,
-    })
-    .from(auditEntries)
-    .innerJoin(users, eq(users.id, auditEntries.actorId))
-    .where(eq(auditEntries.returnId, id))
-    .orderBy(asc(auditEntries.sequence));
-  const reviews = await db
-    .select({
-      kind: returnReviews.kind,
-      outcome: returnReviews.outcome,
-      reason: returnReviews.reason,
-      actorName: users.name,
-      at: returnReviews.at,
-    })
-    .from(returnReviews)
-    .innerJoin(users, eq(users.id, returnReviews.actorId))
-    .where(eq(returnReviews.returnId, id));
-  const [refund] = await db
-    .select({
-      id: refundOperations.id,
-      status: refundOperations.status,
-      amountMinor: refundOperations.amountMinor,
-      currency: refundOperations.currency,
-      requestedAt: refundOperations.requestedAt,
-      updatedAt: refundOperations.updatedAt,
-      message: refundOperations.lastError,
-      providerReceiptId: refundReceipts.providerId,
-    })
-    .from(refundOperations)
-    .leftJoin(refundReceipts, eq(refundReceipts.operationId, refundOperations.id))
-    .where(eq(refundOperations.returnId, id));
-  return { ...summary, items, history, reviews, refund: refund ?? null };
+  return db.transaction(
+    async (tx) => {
+      const [summary] = await tx
+        .select(summaryFields)
+        .from(returnRequests)
+        .leftJoin(refundOperations, eq(refundOperations.returnId, returnRequests.id))
+        .innerJoin(orders, eq(orders.id, returnRequests.orderId))
+        .innerJoin(customers, eq(customers.id, returnRequests.customerId))
+        .innerJoin(users, eq(users.id, customers.userId))
+        .where(and(returnScope(actor), eq(returnRequests.id, id)));
+      if (!summary) throw new HttpError(404, "Return not found");
+      const items = await tx
+        .select({
+          unitId: returnUnits.unitId,
+          amountMinor: returnUnits.amountMinor,
+          name: orderLines.name,
+          variant: orderLines.variant,
+        })
+        .from(returnUnits)
+        .innerJoin(orderUnits, eq(orderUnits.id, returnUnits.unitId))
+        .innerJoin(orderLines, eq(orderLines.id, orderUnits.lineId))
+        .where(eq(returnUnits.returnId, id));
+      const history = await tx
+        .select({
+          id: auditEntries.id,
+          actorName: users.name,
+          event: auditEntries.event,
+          reason: auditEntries.reason,
+          at: auditEntries.at,
+          fromStatus: auditEntries.fromStatus,
+          toStatus: auditEntries.toStatus,
+          correlationId: auditEntries.correlationId,
+          operationId: auditEntries.operationId,
+          refundFromStatus: auditEntries.refundFromStatus,
+          refundToStatus: auditEntries.refundToStatus,
+        })
+        .from(auditEntries)
+        .innerJoin(users, eq(users.id, auditEntries.actorId))
+        .where(eq(auditEntries.returnId, id))
+        .orderBy(asc(auditEntries.sequence));
+      const reviews = await tx
+        .select({
+          kind: returnReviews.kind,
+          outcome: returnReviews.outcome,
+          reason: returnReviews.reason,
+          actorName: users.name,
+          at: returnReviews.at,
+        })
+        .from(returnReviews)
+        .innerJoin(users, eq(users.id, returnReviews.actorId))
+        .where(eq(returnReviews.returnId, id));
+      const [refund] = await tx
+        .select({
+          id: refundOperations.id,
+          status: refundOperations.status,
+          amountMinor: refundOperations.amountMinor,
+          currency: refundOperations.currency,
+          requestedAt: refundOperations.requestedAt,
+          updatedAt: refundOperations.updatedAt,
+          message: refundOperations.lastError,
+          lastLookup: refundOperations.lastLookup,
+          checkedAt: refundOperations.checkedAt,
+          providerReceiptId: refundReceipts.providerId,
+        })
+        .from(refundOperations)
+        .leftJoin(refundReceipts, eq(refundReceipts.operationId, refundOperations.id))
+        .where(eq(refundOperations.returnId, id));
+      return { ...summary, items, history, reviews, refund: refund ?? null };
+    },
+    { isolationLevel: "repeatable read", accessMode: "read only" },
+  );
 }
 export async function requestReturn(
   db: Database,

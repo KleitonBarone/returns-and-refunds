@@ -55,9 +55,10 @@ become unknown. The HTTP timeout defaults to 750 milliseconds; the lease is long
 than the maximum configurable five-second timeout.
 
 The finance and customer views show the same refund status and confirmed receipt.
-Queued and processing operations refresh automatically. Unknown status checks and
-signed event consumption are the next delivery; an unknown operation currently
-stays held. Provider events remain queued until that consumer exists.
+Queued and processing operations refresh automatically. Finance can
+[check an uncertain refund](refund-recovery.md) by its original key and explicitly
+retry only after lookup confirms it is missing. Signed events also confirm status;
+unavailable or conflicting observations keep the operation reserved.
 
 ## Verification
 

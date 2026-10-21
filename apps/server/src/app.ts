@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import Fastify from "fastify";
 import {
   actionInput,
+  recoveryInput,
   refundInput,
   requestInput,
   sessionInput,
@@ -13,14 +14,24 @@ import type { readConfig } from "./config.ts";
 import type { Database } from "./db.ts";
 import { decideReturn } from "./decisions.ts";
 import { HttpError } from "./domain.ts";
+import { createPaymentProvider, type PaymentProvider } from "./provider.ts";
+import { acceptProviderEvent, readSigningSecret, verifyProviderEvent } from "./provider-events.ts";
+import { checkRefund, retryRefund } from "./refund-recovery.ts";
 import { requestRefund } from "./refunds.ts";
 import { listOrders, listReturns, requestReturn, returnDetail } from "./returns.ts";
 import { environmentIdentity } from "./schema.ts";
 
-export async function createApp(db: Database, config: ReturnType<typeof readConfig>) {
+export async function createApp(
+  db: Database,
+  config: ReturnType<typeof readConfig>,
+  services: { provider?: PaymentProvider; signingSecret?: string } = {},
+) {
+  const provider = services.provider ?? createPaymentProvider();
+  const signingSecret = services.signingSecret ?? readSigningSecret();
   const app = Fastify({ logger: false, bodyLimit: 65536 });
   await app.register(cookie);
   app.addHook("onRequest", async (request) => {
+    if (request.routeOptions.url === "/api/provider-events") return;
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       request.headers.origin !== config.webOrigin
@@ -30,6 +41,14 @@ export async function createApp(db: Database, config: ReturnType<typeof readConf
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof HttpError)
       return reply.code(error.statusCode).send({ message: error.message });
+    if (
+      error instanceof Error &&
+      "statusCode" in error &&
+      typeof error.statusCode === "number" &&
+      error.statusCode >= 400 &&
+      error.statusCode < 500
+    )
+      return reply.code(error.statusCode).send({ message: "Invalid request" });
     const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
     console.error(cause instanceof Error ? cause.message : "Unexpected API failure");
     return reply
@@ -81,6 +100,36 @@ export async function createApp(db: Database, config: ReturnType<typeof readConf
     if (input instanceof type.errors) throw new HttpError(400, input.summary);
     await requestRefund(db, actor, request.params.id, input, config.demoNow);
     return reply.code(202).send(await returnDetail(db, actor, request.params.id));
+  });
+  for (const path of ["check", "retry"] as const) {
+    app.post<{ Params: { id: string } }>(
+      `/api/returns/:id/refund/${path}`,
+      async (request, reply) => {
+        const actor = requireActor(await sessionActor(db, request), "finance");
+        const input = recoveryInput(request.body);
+        if (input instanceof type.errors) throw new HttpError(400, input.summary);
+        if (path === "check")
+          await checkRefund(db, actor, request.params.id, input, provider, config.demoNow);
+        else await retryRefund(db, actor, request.params.id, input, config.demoNow);
+        return reply.code(202).send(await returnDetail(db, actor, request.params.id));
+      },
+    );
+  }
+  await app.register(async (events) => {
+    events.removeContentTypeParser("application/json");
+    events.addContentTypeParser("application/json", { parseAs: "buffer" }, (_request, body, done) =>
+      done(null, body),
+    );
+    events.post("/api/provider-events", async (request) => {
+      if (!Buffer.isBuffer(request.body)) throw new HttpError(400, "Raw payment event required");
+      const event = verifyProviderEvent(
+        request.body,
+        request.headers["x-simulator-timestamp"],
+        request.headers["x-simulator-signature"],
+        signingSecret,
+      );
+      return acceptProviderEvent(db, event, request.body, provider, config.demoNow);
+    });
   });
   app.get("/api/health", async () => {
     const [identity] = await db

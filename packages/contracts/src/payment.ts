@@ -21,7 +21,7 @@ export const providerEvent = type({
   provider: "'local-simulator'",
   occurredAt: "string.date.iso",
   refund: providerReceipt,
-});
+}).onDeepUndeclaredKey("reject");
 export type ProviderEvent = typeof providerEvent.infer;
 export const captureInput = type({
   merchantId: "0 < string <= 80",

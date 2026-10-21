@@ -8,21 +8,18 @@ import { eq } from "drizzle-orm";
 import { connectDatabase } from "../apps/server/src/db.ts";
 import { orders } from "../apps/server/src/schema.ts";
 import { prepareSimulatorDatabase } from "../apps/simulator/src/database.ts";
-import { healthResponse } from "../packages/contracts/src/index.ts";
 import { providerReceipt, simulatorDiagnostics } from "../packages/contracts/src/payment.ts";
 import { prepareDatabase } from "./database.ts";
 import {
-  applicationEnvironment,
   cleanup,
   docker,
   identity,
-  launch,
+  launchApi,
   manifestType,
   restartSimulator,
   root,
   runEnvironment,
   runPath,
-  waitFor,
 } from "./environment.ts";
 import { verifyRefundRestart } from "./verify-refund-restart.ts";
 
@@ -105,15 +102,7 @@ try {
           diagnostics.deliveries.filter((entry) => entry.refundId === receipt.id).length,
           2,
         );
-        await launch(
-          manifest,
-          ["--import", "tsx", "apps/server/src/api.ts"],
-          applicationEnvironment(env),
-        );
-        await waitFor(
-          `http://127.0.0.1:${manifest.apiPort}/api/health`,
-          (body) => healthResponse.allows(body) && body.runId === manifest.id,
-        );
+        await launchApi(manifest, env);
         await verifyRefundRestart(db, env, manifest);
       } finally {
         await pool.end();

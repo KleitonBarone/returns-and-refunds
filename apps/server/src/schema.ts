@@ -16,7 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { refundStates, returnStates, roles } from "../../../packages/contracts/src/index.ts";
-import type { ProviderReceipt } from "../../../packages/contracts/src/payment.ts";
+import type { ProviderEvent, ProviderReceipt } from "../../../packages/contracts/src/payment.ts";
 
 export const environmentIdentity = pgTable("environment_identity", {
   id: text().primaryKey(),
@@ -193,6 +193,8 @@ export const refundOperations = pgTable(
     currency: text().notNull(),
     status: refundState().notNull().default("pending"),
     lastError: text(),
+    lastLookup: text({ enum: ["found", "not_found", "unavailable"] }),
+    checkedAt: timestamp({ withTimezone: true, mode: "string" }),
     requestedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
     updatedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
   },
@@ -206,6 +208,21 @@ export const refundReceipts = pgTable("refund_receipts", {
   receipt: jsonb().$type<ProviderReceipt>().notNull(),
   observedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
 });
+export const providerEventReceipts = pgTable(
+  "provider_event_receipts",
+  {
+    provider: text().notNull(),
+    eventId: uuid().notNull(),
+    operationId: uuid()
+      .notNull()
+      .references(() => refundOperations.id),
+    payloadHash: text().notNull(),
+    payload: jsonb().$type<ProviderEvent>().notNull(),
+    outcome: text({ enum: ["applied", "ignored", "reconciled"] }).notNull(),
+    receivedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.eventId] })],
+);
 export const refundJobs = pgTable(
   "refund_jobs",
   {

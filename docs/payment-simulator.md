@@ -85,13 +85,16 @@ destroying the underlying connection. Contract tests use real HTTP sockets.
 ## Events and delivery
 
 Every accepted operation schedules a processing event and its terminal event.
+The configured event delay applies to both, so a lost-response scenario can stay
+unknown until finance checks it. Processing and terminal delivery order is not
+guaranteed; the consumer applies status guards.
 The event envelope contains `id`, `provider: local-simulator`, `occurredAt`, and
 the refund receipt. `occurredAt` follows the controlled business clock. Each send
 uses the current wall clock in `x-simulator-timestamp`, as integer epoch seconds.
 `x-simulator-signature` is the lowercase hex HMAC-SHA256 of
 `timestamp + "." + rawBody`, using the shared local signing key. Signatures cover
-the exact UTF-8 bytes sent, and are renewed on retries. The consumer will enforce
-a five-minute delivery timestamp tolerance in delivery 6.
+the exact UTF-8 bytes sent, and are renewed on retries. The consumer enforces
+a five-minute delivery timestamp tolerance.
 
 Deliveries persist before HTTP. Senders claim due rows with
 [`FOR UPDATE SKIP LOCKED`](https://www.postgresql.org/docs/18/sql-select.html#SQL-FOR-UPDATE-SHARE),

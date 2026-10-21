@@ -2,18 +2,19 @@
 
 A local operations console for reviewing return requests, recording warehouse
 inspection, and issuing refunds. The customer can follow the request while the
-merchant can explain each decision and track an uncertain refund.
+merchant can explain each decision and recover an uncertain refund.
 
 The default environment uses fictional orders and a local payment simulator.
 No merchant account, real customer, card, or movement of money is required.
 
-**Status: requests, decisions, inspection, and refund submission implemented.** Choose a demo
+**Status: the return, refund, and recovery workflow is implemented.** Choose a demo
 persona, request part of an eligible order, and follow approval, receipt, and
 inspection in the merchant queue. Each transition records its actor and reason.
 Rejected requests and failed inspections release their reserved units atomically.
 Finance confirms the amount; a durable worker processes the original operation.
-Unknown outcomes keep their amount and items reserved. Recovery and signed event
-consumption follow in the remaining
+Unknown outcomes keep their amount and items reserved. Finance can check their
+original payment status; signed events confirm results without duplicating funds.
+Interface refinement and repeatable demonstration tooling follow in the remaining
 [delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
 from the next incomplete delivery PR.
 
@@ -21,14 +22,15 @@ The [persistent payment simulator](docs/payment-simulator.md) is available as a
 separate HTTP service and database. It supports idempotent refunds, an independent
 ledger, failure controls, and durable signed events. The
 [refund worker](docs/refund-processing.md) handles leases, pre-write retries,
-crashes, and atomic success. The event consumer is the next delivery.
+crashes, and atomic success. The [recovery and event receiver](docs/refund-recovery.md)
+handles unknown outcomes, duplicate events, and contradictory observations.
 
 Open Maya's orders to request a return, then choose Ava to see it in support's
 queue. Approve it with a reason, then choose Jules to record receipt and inspection.
 A passing inspection makes the return ready for Sam's finance review and amount
-confirmation. Confirmed success closes it and permanently consumes the refunded
-units. Maya's older
-order shows the expired window. Robin's queue belongs to
+confirmation. If a response is lost, Sam can record a recovery reason and check
+the original payment status. Confirmed success closes the return and permanently
+consumes the refunded units. Maya's older order shows the expired window. Robin's queue belongs to
 the separate Other Store merchant. Persona switching is a local demo feature,
 not production authentication.
 
@@ -87,6 +89,9 @@ While development is running, `pnpm simulator:inspect` shows the synthetic ledge
 Use `pnpm simulator:control payment-order-1042 drop_response` to lose the next new
 refund's response, or replace `drop_response` with `success` to restore normal
 responses. These commands verify the active checkout and hide local credentials.
+Append `northline 60000` to delay events for one minute when inspecting the
+unknown state before checking it in finance. Restore normal behavior with
+`pnpm simulator:control payment-order-1042 success` afterward.
 
 ## Verify and clean up
 
@@ -101,8 +106,9 @@ pnpm test:environment
 Integration runs create separate app/simulator PostgreSQL instances and fixtures,
 and start the real simulator HTTP service. Environment verification exercises two
 fresh startups, persisted changes across migration/seed reruns, simulator process
-restart persistence, a real worker crash after provider success and subsequent
-same-operation recovery, real HTTP/worker readiness, injected startup failure, abrupt
+restart persistence, a real worker crash after provider success, lost-response
+recovery after full service restarts, signed duplicate/contradictory deliveries,
+real HTTP/worker readiness, injected startup failure, abrupt
 termination, and abandoned-run recovery. All disposable containers, networks,
 volumes, and child processes must be gone afterward. Each PostgreSQL service is
 limited to 512 MiB, one CPU, and 30 connections; application pools use four.

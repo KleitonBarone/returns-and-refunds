@@ -25,7 +25,13 @@ export const refundViewContract = type({
   updatedAt: "string",
   message: "string | null",
   providerReceiptId: "string | null",
+  lastLookup: "'found' | 'not_found' | 'unavailable' | null",
+  checkedAt: "string | null",
 });
+export const recoveryInput = type({
+  reason: "3 <= string <= 500",
+  correlationId: "string.uuid",
+}).onDeepUndeclaredKey("reject");
 export const returnStates = [
   "requested",
   "approved",

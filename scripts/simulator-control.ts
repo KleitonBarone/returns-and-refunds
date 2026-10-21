@@ -42,12 +42,14 @@ const body =
         paymentRef: process.argv[3],
         mode: process.argv[4],
         responseDelayMs: 1000,
-        eventDelayMs: 0,
+        eventDelayMs: Number(process.argv[6] ?? 0),
         eventCopies: 1,
       })
     : undefined;
 if (action !== "inspect" && action !== "control")
-  throw new Error("Use simulator:inspect or simulator:control <payment-ref> <mode> [merchant]");
+  throw new Error(
+    "Use simulator:inspect or simulator:control <payment-ref> <mode> [merchant] [event-delay-ms]",
+  );
 const response = await fetch(`${credentials.url}/control/${body ? "payments" : "diagnostics"}`, {
   method: body ? "POST" : "GET",
   headers: {
@@ -60,6 +62,6 @@ const response = await fetch(`${credentials.url}/control/${body ? "payments" : "
 if (!response.ok) throw new Error(`Simulator command failed (${response.status})`);
 console.log(
   body
-    ? `Configured ${body.paymentRef}: ${body.mode}`
+    ? `Configured ${body.paymentRef}: ${body.mode}; event delay ${body.eventDelayMs}ms`
     : JSON.stringify(simulatorDiagnostics.assert(await response.json()), null, 2),
 );
