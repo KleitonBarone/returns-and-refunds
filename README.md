@@ -1,109 +1,52 @@
 # Returns and refunds
 
-A local operations console for reviewing return requests, recording warehouse
-inspection, and issuing refunds. The customer can follow the request while the
-merchant can explain each decision and recover an uncertain refund.
+A local return and refund application for a fictional clothing merchant. Customers
+request part of an order; support approves it, the warehouse records inspection,
+and finance confirms the refund. The interesting case is a successful payment
+whose response disappears: the app must recover the original refund without
+issuing another one.
 
-The default environment uses fictional orders and a local payment simulator.
-No merchant account, real customer, card, or movement of money is required.
+[Watch the captioned walkthrough](https://github.com/KleitonBarone/returns-and-refunds/releases/tag/portfolio-walkthrough-2026-10-21)
+or [read the recovery case study](docs/case-study.md).
 
-**Status: the return, refund, and recovery workflow is implemented.** Choose a demo
-persona, request part of an eligible order, and follow approval, receipt, and
-inspection in the merchant queue. Each transition records its actor and reason.
-Rejected requests and failed inspections release their reserved units atomically.
-Finance confirms the amount; a durable worker processes the original operation.
-Unknown outcomes keep their amount and items reserved. Finance can check their
-original payment status; signed events confirm results without duplicating funds.
-The interface and repeatable demo are implemented; the portfolio handoff follows
-in the remaining [delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
-from the next incomplete delivery PR.
+![A confirmed partial refund and its recorded history](docs/evidence/screenshots/refund-recovered.jpg)
 
-The [persistent payment simulator](docs/payment-simulator.md) is available as a
-separate HTTP service and database. It supports idempotent refunds, an independent
-ledger, failure controls, and durable signed events. The
-[refund worker](docs/refund-processing.md) handles leases, pre-write retries,
-crashes, and atomic success. The [recovery and event receiver](docs/refund-recovery.md)
-handles unknown outcomes, duplicate events, and contradictory observations.
+## Try it locally
 
-Open Maya's orders to request a return, then choose Ava to see it in support's
-queue. Approve it with a reason, then choose Jules to record receipt and inspection.
-A passing inspection makes the return ready for Sam's finance review and amount
-confirmation. If a response is lost, Sam can record a recovery reason and check
-the original payment status. Confirmed success closes the return and permanently
-consumes the refunded units. Maya's older order shows the expired window. Robin's queue belongs to
-the separate Other Store merchant. Persona switching is a local demo feature,
-not production authentication.
-
-The plan also defines reproducible local and end-to-end test environments,
-readiness checks, deterministic fixtures, and cleanup after success or failure.
-Temporary test resources are disposable; normal shutdown preserves demo data.
-Logs and browser artifacts have bounded retention to prevent disk buildup.
-
-The planned demo follows a partial return through approval, warehouse receipt,
-and a refund whose successful response is lost. Retrying the operation must keep
-one refund in the simulator's ledger. Other seeded cases cover an expired return
-window, a rejected inspection, and a duplicate payment event.
-
-The starting architecture is React, TypeScript, Vite, Tailwind, TanStack Query,
-a Node.js API and worker, and PostgreSQL. External providers stay behind a small
-adapter. An optional Stripe test integration can be considered after the local
-workflow works; it is not needed for the portfolio demonstration.
-
-Verification will document author-performed scenarios, financial invariants, and
-failure recovery. Any case study will distinguish simulator evidence from actual
-provider behavior and customer outcomes.
-
-The final handoff includes a repeatable local demonstration, screenshots, an
-English walkthrough, and a case study. Public hosting is optional future work.
-
-## Run locally
-
-Use Node 24.20.0 in the 24.x line and pnpm 11.23.0. On Windows, Docker Engine and
-Compose run in WSL Ubuntu; Windows Node/pnpm run the application. No Docker
-Desktop install or Docker context changes are needed. Linux CI runs the same
-scripts with native Docker. Allow at least 2 GiB free disk space.
+Use **Node 24.20.0**, **pnpm 11.23.0**, and Docker Engine with Compose. On Windows,
+the application runs with Windows Node/pnpm and Docker runs in WSL Ubuntu using
+its default Unix socket. Docker Desktop is unnecessary. Linux uses native Docker.
+Allow at least 2 GiB free disk space. No external account or payment credentials
+are needed.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm env:doctor
-pnpm dev
+pnpm demo:run
 ```
 
-The runner waits for PostgreSQL, applies migrations, and creates missing demo
-fixtures, and verifies the refund worker's identity and heartbeat. It never resets
-existing progress on startup. Open
-`http://127.0.0.1:4320`; API readiness is at `http://127.0.0.1:4321/api/health`.
-The app database uses 55432; the simulator uses HTTP 4322 and its database 55433.
-Copy `.env.example` to `.env` to override local ports or the explicitly fictional
-clock. The runner generates local database
-credentials and ignores an inherited `DATABASE_URL` when creating its environment.
-The runner holds a tracked WSL session while services run, so Ubuntu's idle
-shutdown cannot silently stop PostgreSQL. Teardown releases that session last;
-it does not change WSL configuration.
+Open the printed loopback URL. Setup creates separate application and simulator
+databases, applies migrations, seeds scenarios, and starts the real services on
+assigned ports. Choose Sam and open `DEMO-UNKNOWN`, add a recovery reason, then
+choose **Check payment status**. Maya sees the same history and remaining units.
+Ava handles support; Jules handles receipt and inspection. Noah and Robin belong
+to a separate merchant.
 
-Stop with Ctrl+C or run `pnpm dev:down` in another terminal. Normal shutdown
-removes project processes, containers, and networks while preserving its named
-demo volumes. No services need to remain running between development sessions.
+The fixture clock is October 1, 2026. Cases include normal and partial refunds,
+expiry, failed inspection, a pre-write retry, an unknown result, previously
+returned units, and merchant isolation. All orders and payments are synthetic.
 
-While development is running, `pnpm simulator:inspect` shows the synthetic ledger.
-Use `pnpm simulator:control payment-order-1042 drop_response` to lose the next new
-refund's response, or replace `drop_response` with `success` to restore normal
-responses. These commands verify the active checkout and hide local credentials.
-Append `northline 60000` to delay events for one minute when inspecting the
-unknown state before checking it in finance. Restore normal behavior with
-`pnpm simulator:control payment-order-1042 success` afterward.
+Ctrl+C stops this disposable demo and removes its databases. To rebuild its
+scenarios while it runs, use `pnpm demo:reset <printed-run-id>` in another terminal,
+then reload the browser. Reset verifies both database identities and demo-only
+markers. The [scenario guide](docs/repeatable-demo.md) explains its exact scope.
 
-## Verify and clean up
+For progress that survives shutdown, use `pnpm dev` and open
+`http://127.0.0.1:4320`. Ctrl+C or `pnpm dev:down` stops its services while retaining
+both development volumes. `.env.example` lists optional port and clock overrides.
+Startup creates missing fixtures and preserves existing returns.
 
-For fresh, already populated scenarios, run `pnpm demo:run` and open its printed
-URL. It uses separate disposable databases and assigned ports. Finance can recover
-`DEMO-UNKNOWN`, while customer and operator views include normal, expired,
-inspection-failure, retryable, previously returned, and second-merchant cases.
-`pnpm demo:reset <printed-run-id>` resets only that live disposable demo pair.
-`pnpm demo:verify` checks two equivalent cycles, restart recovery without clearing
-the ledger, and reset refusals. `pnpm demo:run --once` seeds, verifies, and exits.
-Ctrl+C removes an interactive demo's disposable data. See the
-[scenario and reset guide](docs/repeatable-demo.md) for exact assertions and limits.
+## Verify it
 
 ```sh
 pnpm check
@@ -114,62 +57,34 @@ pnpm test:environment
 pnpm browser:install
 pnpm test:e2e
 pnpm test:e2e:environment
+pnpm demo:verify
 ```
 
-Integration runs create separate app/simulator PostgreSQL instances and fixtures,
-and start the real simulator HTTP service. Environment verification exercises two
-fresh startups, persisted changes across migration/seed reruns, simulator process
-restart persistence, a real worker crash after provider success, lost-response
-recovery after full service restarts, signed duplicate/contradictory deliveries,
-real HTTP/worker readiness, injected startup failure, abrupt
-termination, and abandoned-run recovery. All disposable containers, networks,
-volumes, and child processes must be gone afterward. Each PostgreSQL service is
-limited to 512 MiB, one CPU, and 30 connections; application pools use four.
+Run the lifecycle suites sequentially. They create fresh paired databases and
+verify cleanup after successful, failed, and interrupted execution. Integration
+checks cover authorization, competing reservations, capture limits, atomic audits,
+worker leases, and signed-event races. Browser journeys complete the workflow
+through the real UI, restart services, and compare the independent provider ledger.
+`demo:verify` compares two scenario cycles and checks reset refusals and partial
+commit failure. [Recorded evidence](docs/evidence/repeatable-verification.md)
+contains actual IDs and amounts.
 
-`browser:install` downloads the Chromium revision pinned by Playwright into this
-checkout's ignored `.local/browsers`. Linux CI uses `--with-deps` to install its
-system libraries. The installer removes obsolete revisions in this dedicated
-cache. It does not change the user's browser or global browser cache.
+## How it works
 
-`test:e2e` builds the web app and starts fresh app/provider databases, the actual
-API, worker, simulator, and web server on assigned loopback ports. It verifies run
-identity and never reuses a running development server. Keyboard journeys cover a
-partial return, a lost payment response, full service restarts, original-operation
-recovery, duplicate delayed events, expired eligibility, narrow navigation, and
-an API outage. The independent provider ledger must contain one $35 refund.
-Run lifecycle suites sequentially, since they verify preservation of existing
-Docker networks.
+React, Vite, Tailwind, and TanStack Query provide the interface. Fastify, ArkType,
+Drizzle, and PostgreSQL enforce the workflow. A PostgreSQL outbox avoids adding a
+broker. A separate HTTP payment simulator owns its persistent ledger; the app
+cannot access its SQL database. Integer minor-unit amounts, purchased-unit claims,
+and order locks protect partial refunds. Unknown outcomes retain their reservation
+until authoritative lookup resolves the original key.
 
-Use `pnpm test:e2e --inspect` to pause that same disposable stack for manual
-inspection. Press Enter, or create the printed `resume-request` file, to run the
-journeys and tear it down. Stop with Ctrl+C if inspection should end early.
-`test:e2e:environment` deliberately fails an assertion to verify failure evidence,
-then kills only its own supervisor while Chromium is open and verifies abandoned
-run cleanup. Its deliberate failed assertion is expected; the command exits
-successfully only when both recovery checks pass.
+See the [architecture](docs/architecture.md), [refund processing](docs/refund-processing.md),
+[recovery contract](docs/refund-recovery.md), and [simulator limits](docs/payment-simulator.md).
+The [handoff](HANDOFF.md) covers recording, clean-checkout verification, environment
+recovery, and retained disk usage.
 
-Each browser run replaces either `.local/e2e-last-success` or
-`.local/e2e-last-failure`, capped at 100 diagnostic files and 32 MiB, plus a small
-retention summary. Failures include the assertion report, screenshot, accessible
-page state, and bounded console errors. Traces and video are disabled because
-they can record session credentials. Browser profiles and crash files live below
-the run directory on Windows. Unix runs use a private, short `/tmp/rr-<hash>`
-directory so Chromium's socket path stays within the OS limit. Cleanup verifies
-its run/workspace owner marker before removing it, including after interruption.
-Both paths are removed along with the verified browser processes and services.
-CI keeps failure artifacts for seven days. The browser cache is intentionally
-reused between runs; it can be removed when this checkout no longer needs tests.
-Actual results and captured views are in
-[browser verification](docs/evidence/browser-verification.md).
-
-Inspect an abandoned run with `pnpm env:clean <run-id>`, then add `--apply` to
-remove its verified resources. `pnpm env:clean --all --apply` handles recorded
-inactive runs for this checkout. Active or mismatched resources are refused.
-Manifests live under ignored `.local/runs`; the latest result and bounded failure
-diagnostics live under `.local`. Persistent demo volumes and shared caches are
-preserved. Never use global Docker pruning for this project.
-
-Docker subnet selection checks existing container networks and host routes,
-excluding default routes. This also works when existing projects exhaust Docker's
-automatic pools. It does not remove or modify their networks. The pinned
-PostgreSQL image is reused between runs and is an intentional local dependency.
+This is portfolio software with local persona sessions. It has no production
+authentication, real payment adapter, shipping integration, or public deployment.
+Terminally rejected refunds conservatively retain capacity; this demo has no
+manual-resolution workflow. Simulator verification makes no claim about a real
+provider's settlement, retention, or idempotency contract.

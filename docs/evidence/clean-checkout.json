@@ -1,0 +1,176 @@
+{
+  "observedAt": "2026-10-21T19:44:50.354Z",
+  "source": "8d727a61f89a45c449176998873f329b21cb5b0b",
+  "checkout": ".local/rehearsal-portfolio",
+  "workspace": "93d7a886c2d1",
+  "bootstrap": {
+    "remote": "https://github.com/KleitonBarone/returns-and-refunds.git",
+    "sourceCleanAfterChecks": true,
+    "envAbsentForFullSuite": true,
+    "externalAccountsRequired": false,
+    "packagesReusedFromSharedContentAddressedStore": 152,
+    "packagesDownloaded": 0,
+    "browserDownloadedIntoThisCheckout": true
+  },
+  "tools": {
+    "node": "24.20.0",
+    "pnpm": "11.23.0",
+    "docker": "29.8.0",
+    "compose": "5.5.1",
+    "postgresImage": "18.1-alpine",
+    "playwright": "1.64.1",
+    "chromium": "156.0.8078.4"
+  },
+  "commands": [
+    {
+      "command": "pnpm install --frozen-lockfile",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm env:doctor",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm check",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm build",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm browser:install",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test:integration",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test:environment",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test:e2e",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test:e2e:environment",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm demo:verify",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm demo:run --once",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm dev",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm simulator:inspect",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm dev:down",
+      "exitCode": 0
+    }
+  ],
+  "unitTests": 4,
+  "integrationTests": 59,
+  "browser": {
+    "runId": "codex-returns-test-1ad21090-8a2e-4956-a1ae-335b9f979b3c",
+    "stats": {
+      "startTime": "2026-10-21T19:37:44.467Z",
+      "duration": 21544.042,
+      "expected": 2,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "retainedBytes": 379904
+  },
+  "expectedFailureDiagnostics": {
+    "files": 6,
+    "bytes": 62296,
+    "limitBytes": 33554432,
+    "abandonedBrowserCleanupPassed": true,
+    "mismatchedStorageRefused": true
+  },
+  "demo": {
+    "runId": "codex-returns-test-045cd203-3a53-476f-907f-acbddc4a0fb5",
+    "cycles": 2,
+    "equivalentFinancialAssertions": true,
+    "ledgerEntriesPerCycle": 3,
+    "ledgerAmountMinorPerCycle": 10500,
+    "recoveryPreservedLedger": true,
+    "markerRefusalsPreservedRows": [
+      "environment_identity/returns-demo",
+      "environment_identity/returns-disposable-demo",
+      "simulator_identity/payment-simulator",
+      "simulator_identity/payment-disposable-demo"
+    ],
+    "partialResetFailedStopped": true
+  },
+  "oneShotDemo": {
+    "runId": "codex-returns-test-2d7a0b73-7dd2-4fe9-9198-04c8871172bd",
+    "automaticMigrationAndSeed": true,
+    "ledgerEntries": 3,
+    "ledgerAmountMinor": 10500
+  },
+  "development": {
+    "workspace": "93d7a886c2d1",
+    "providerHealth": {
+      "service": "payment-simulator",
+      "runId": "returns-dev-93d7a886c2d1",
+      "database": "ready"
+    },
+    "source": "8d727a61f89a45c449176998873f329b21cb5b0b",
+    "simulatorDatabasePort": 56950,
+    "databasePort": 56946,
+    "webPort": 56948,
+    "webHealth": {
+      "service": "returns-api",
+      "runId": "returns-dev-93d7a886c2d1",
+      "database": "ready",
+      "demoNow": "2026-10-01T12:00:00Z"
+    },
+    "apiPort": 56947,
+    "runId": "returns-dev-93d7a886c2d1",
+    "simulatorPort": 56949,
+    "initialVolumeBaselineEmpty": true,
+    "configuredPorts": "All five ports set to 0 in a rehearsal-only .env to obtain assigned loopback ports",
+    "providerLedgerInitiallyEmpty": true,
+    "normalShutdown": {
+      "runId": "returns-dev-93d7a886c2d1",
+      "source": "8d727a61f89a45c449176998873f329b21cb5b0b",
+      "cleanedAt": "2026-10-21T19:43:29.308Z",
+      "retained": ["returns-dev-93d7a886c2d1_data", "returns-dev-93d7a886c2d1_simulator-data"],
+      "result": "cleanup verified"
+    },
+    "temporaryVolumesExplicitlyRemoved": [
+      "returns-dev-93d7a886c2d1_data",
+      "returns-dev-93d7a886c2d1_simulator-data"
+    ],
+    "temporaryEnvRemoved": true
+  },
+  "cleanup": {
+    "runDirectoriesRemaining": 0,
+    "workspaceContainersRemaining": 0,
+    "workspaceNetworksRemaining": 0,
+    "workspaceVolumesRemaining": 0,
+    "originalDevelopmentVolumesPreserved": [
+      "returns-dev-bf74efb61236_data",
+      "returns-dev-bf74efb61236_simulator-data"
+    ],
+    "checkoutRetainedOnlyForFinalRemoteShaVerification": true
+  },
+  "postMergeClosure": "Pending actual final PR merge; final-verification.json will be attached to the walkthrough release after exact remote SHA checks and removal of this checkout"
+}

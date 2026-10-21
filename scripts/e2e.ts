@@ -21,10 +21,19 @@ import {
   waitFor,
 } from "./environment.ts";
 
-async function preserveArtifacts(directory: string, failed: boolean, browserTemp: string) {
+async function preserveArtifacts(
+  directory: string,
+  failed: boolean,
+  browserTemp: string,
+  recording: boolean,
+) {
   const source = join(directory, "browser-results");
   if (!existsSync(source)) return;
-  const target = join(root, ".local", failed ? "e2e-last-failure" : "e2e-last-success");
+  const target = join(
+    root,
+    ".local",
+    failed ? "e2e-last-failure" : recording ? "walkthrough-last" : "e2e-last-success",
+  );
   if (existsSync(target)) await safeRemove(target);
   await mkdir(target);
   let bytes = 0;
@@ -37,9 +46,15 @@ async function preserveArtifacts(directory: string, failed: boolean, browserTemp
       if (entry.isDirectory()) {
         await mkdir(output);
         await copy(input, output);
-      } else if (/\.(png|md|json|txt)$/.test(entry.name)) {
+      } else if (
+        /\.(png|md|json|txt)$/.test(entry.name) ||
+        (recording && entry.name.endsWith(".webm"))
+      ) {
         const size = (await stat(input)).size;
-        if (bytes + size > 32 * 1024 * 1024 || files >= 100) continue;
+        if (bytes + size > 32 * 1024 * 1024 || files >= 100) {
+          if (recording) throw new Error("Recording exceeds the 32 MiB / 100 file retention limit");
+          continue;
+        }
         await cp(input, output);
         bytes += size;
         files++;
@@ -58,7 +73,7 @@ async function preserveArtifacts(directory: string, failed: boolean, browserTemp
 }
 
 export async function runBrowserEnvironment(
-  mode: "test" | "fail" | "hold" = "test",
+  mode: "test" | "fail" | "hold" | "record" = "test",
   inspect = false,
 ) {
   await runEnvironment("e2e", async (env, manifest) => {
@@ -155,13 +170,19 @@ export async function runBrowserEnvironment(
       }
       await foreground(
         manifest,
-        ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.config.ts"],
+        [
+          "node_modules/@playwright/test/cli.js",
+          "test",
+          "--config",
+          "playwright.config.ts",
+          ...(mode === "record" ? ["--grep", "keyboard partial return"] : []),
+        ],
         browserEnv,
       );
       failed = false;
     } finally {
       unwatchFile(commandPath);
-      await preserveArtifacts(directory, failed, scratch);
+      await preserveArtifacts(directory, failed, scratch, mode === "record");
     }
   });
 }
@@ -171,6 +192,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       ? "fail"
       : process.argv.includes("--hold")
         ? "hold"
-        : "test",
+        : process.argv.includes("--record")
+          ? "record"
+          : "test",
     process.argv.includes("--inspect"),
   );
