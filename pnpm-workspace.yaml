@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  sharp: false
+minimumReleaseAgeExclude:
+  - '@ark/schema@0.56.8'
+  - '@ark/util@0.56.8'
+  - arkregex@0.0.14
+  - arktype@2.2.9

@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Segoe UI", sans-serif;
+  color: #253b4b;
+  background: #f3f6f8;
+  font-synthesis: none;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+select {
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 3px solid #276ca0;
+  outline-offset: 3px;
+}
+.foundation {
+  max-width: 640px;
+  margin: 12vh auto;
+  padding: 32px;
+}
+.foundation h1 {
+  font-size: clamp(36px, 6vw, 60px);
+  line-height: 1.06;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.foundation p {
+  line-height: 1.7;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: #243f58;
+  color: white;
+  font-size: 25px;
+  font-weight: 700;
+}
