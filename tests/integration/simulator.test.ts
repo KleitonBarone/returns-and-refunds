@@ -213,14 +213,35 @@ describe("persistent HTTP payment simulator", () => {
   });
   it("can delay the response while its durable receipt is already queryable", async () => {
     const input = await fixture("delay_response", { responseDelayMs: 1000 });
-    await expect(request(submitPath, input, false, AbortSignal.timeout(250))).rejects.toThrow();
-    const recovered = providerReceipt.assert(
-      await (await request(`${submitPath}/${input.idempotencyKey}`)).json(),
+    const controller = new AbortController();
+    const pending = request(
+      submitPath,
+      input,
+      false,
+      AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+    ).then(
+      (response) => ({ response }),
+      (error: unknown) => ({ error }),
     );
-    expect(recovered.status).toBe("succeeded");
-    expect(
-      (await diagnostics()).ledger.filter((row) => row.refundId === recovered.id),
-    ).toHaveLength(1);
+    try {
+      await expect
+        .poll(async () => (await request(`${submitPath}/${input.idempotencyKey}`)).status, {
+          timeout: 3000,
+        })
+        .toBe(200);
+      controller.abort();
+      expect("error" in (await pending)).toBe(true);
+      const recovered = providerReceipt.assert(
+        await (await request(`${submitPath}/${input.idempotencyKey}`)).json(),
+      );
+      expect(recovered.status).toBe("succeeded");
+      expect(
+        (await diagnostics()).ledger.filter((row) => row.refundId === recovered.id),
+      ).toHaveLength(1);
+    } finally {
+      controller.abort();
+      await pending;
+    }
   });
   it("reopens server and database connections without losing keys or ledger entries", async () => {
     const input = await fixture();
