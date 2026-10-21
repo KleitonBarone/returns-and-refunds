@@ -7,7 +7,9 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { type } from "arktype";
+import { prepareSimulatorDatabase } from "../apps/simulator/src/database.ts";
 import { healthResponse } from "../packages/contracts/src/index.ts";
+import { simulatorHealth } from "../packages/contracts/src/payment.ts";
 import { prepareDatabase } from "./database.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -27,6 +29,9 @@ const manifestType = type({
   dbPort: "number",
   apiPort: "number",
   webPort: "number",
+  "simulatorPort?": "number",
+  "simulatorDbPort?": "number",
+  "simulatorPid?": "number.integer > 0",
   state: "'starting' | 'running' | 'cleaning' | 'failed'",
   dockerEndpoint: "string",
   subnet: "string",
@@ -249,7 +254,8 @@ async function cleanup(manifest: Manifest, active = false) {
     ]);
     if (label !== workspace) throw new Error("Container ownership mismatch");
   }
-  for (const volume of ownedResources(manifest, "volume")) {
+  const volumes = ownedResources(manifest, "volume");
+  for (const volume of volumes) {
     if (
       docker([
         "volume",
@@ -290,14 +296,21 @@ async function cleanup(manifest: Manifest, active = false) {
   if (keepalive) await stopChild(keepalive);
   for (const child of manifest.children)
     if (await matches(child)) throw new Error(`Owned process ${child.pid} remains`);
-  for (const port of [manifest.apiPort, manifest.webPort, manifest.dbPort]) await freePort(port);
+  for (const port of [
+    manifest.apiPort,
+    manifest.webPort,
+    manifest.dbPort,
+    manifest.simulatorPort,
+    manifest.simulatorDbPort,
+  ])
+    if (port !== undefined) await freePort(port);
   await writeFile(
     join(root, ".local", "last-result.json"),
-    `${JSON.stringify({ runId: manifest.id, source: manifest.source, cleanedAt: new Date().toISOString(), retained: manifest.mode === "dev" ? ["project demo volume"] : [], result: outcome }, null, 2)}\n`,
+    `${JSON.stringify({ runId: manifest.id, source: manifest.source, cleanedAt: new Date().toISOString(), retained: manifest.mode === "dev" ? volumes : [], result: outcome }, null, 2)}\n`,
   );
   await safeRemove(runPath(manifest.id));
   console.log(
-    `Cleaned ${manifest.id}; ${manifest.mode === "dev" ? "demo volume preserved" : "no disposable resources retained"}.`,
+    `Cleaned ${manifest.id}; ${manifest.mode === "dev" ? "demo volumes preserved" : "no disposable resources retained"}.`,
   );
 }
 async function launch(
@@ -344,6 +357,28 @@ async function foreground(manifest: Manifest, args: string[], env: NodeJS.Proces
     );
   });
 }
+export async function restartSimulator(manifest: Manifest, env: NodeJS.ProcessEnv) {
+  const previous = manifest.children.find((child) => child.pid === manifest.simulatorPid);
+  if (!previous || !(await matches(previous)))
+    throw new Error("Simulator process ownership mismatch");
+  process.kill(previous.pid, "SIGTERM");
+  const deadline = Date.now() + 10000;
+  while (await matches(previous)) {
+    if (Date.now() >= deadline) throw new Error("Simulator did not stop for restart");
+    await delay(100);
+  }
+  const child = await launch(
+    manifest,
+    ["--import", "tsx", "apps/simulator/src/api.ts"],
+    simulatorEnvironment(env),
+  );
+  manifest.simulatorPid = child.pid;
+  await save(manifest);
+  await waitFor(
+    `${env.SIMULATOR_URL}/health`,
+    (body) => simulatorHealth.allows(body) && body.runId === manifest.id,
+  );
+}
 async function preflight() {
   if (Number(process.versions.node.split(".")[0]) !== 24)
     throw new Error("Use Node 24.20.0 or newer in the 24.x line");
@@ -369,6 +404,18 @@ async function preflight() {
     console.log(`Recorded environments: ${stale.join(", ")}. Use env:clean <id> to inspect.`);
   return endpoint;
 }
+// The API and worker receive the HTTP credential, never provider SQL or control access.
+export function applicationEnvironment(env: NodeJS.ProcessEnv) {
+  const scoped = { ...env };
+  delete scoped.SIMULATOR_DATABASE_URL;
+  delete scoped.SIMULATOR_ADMIN_TOKEN;
+  return scoped;
+}
+export function simulatorEnvironment(env: NodeJS.ProcessEnv) {
+  const scoped = { ...env };
+  delete scoped.DATABASE_URL;
+  return scoped;
+}
 export async function runEnvironment(
   mode: Manifest["mode"],
   job?: (env: NodeJS.ProcessEnv, manifest: Manifest) => Promise<void>,
@@ -385,9 +432,27 @@ export async function runEnvironment(
   }
   const owner = await identity(process.pid);
   if (!owner) throw new Error("Unable to verify supervisor identity");
-  const dbPort = await freePort(mode === "dev" ? Number(process.env.DB_PORT ?? 55432) : 0);
-  const apiPort = await freePort(mode === "dev" ? Number(process.env.API_PORT ?? 4321) : 0);
-  const webPort = await freePort(mode === "dev" ? Number(process.env.WEB_PORT ?? 4320) : 0);
+  const assigned = new Set<number>();
+  async function assign(preferred: number) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const port = await freePort(preferred);
+      if (!assigned.has(port)) {
+        assigned.add(port);
+        return port;
+      }
+      if (preferred) break;
+    }
+    throw new Error("Configured service ports must be distinct");
+  }
+  const dbPort = await assign(mode === "dev" ? Number(process.env.DB_PORT ?? 55432) : 0);
+  const apiPort = await assign(mode === "dev" ? Number(process.env.API_PORT ?? 4321) : 0);
+  const webPort = await assign(mode === "dev" ? Number(process.env.WEB_PORT ?? 4320) : 0);
+  const simulatorPort = await assign(
+    mode === "dev" ? Number(process.env.SIMULATOR_PORT ?? 4322) : 0,
+  );
+  const simulatorDbPort = await assign(
+    mode === "dev" ? Number(process.env.SIMULATOR_DB_PORT ?? 55433) : 0,
+  );
   const subnet = chooseSubnet();
   await mkdir(directory);
   const manifest: Manifest = {
@@ -401,11 +466,18 @@ export async function runEnvironment(
     dbPort,
     apiPort,
     webPort,
+    simulatorPort,
+    simulatorDbPort,
     state: "starting",
     dockerEndpoint: endpoint,
     subnet,
   };
   const password = mode === "dev" ? "fictional-local-demo-only" : randomUUID();
+  const simulatorPassword = mode === "dev" ? "fictional-simulator-demo-only" : randomUUID();
+  const localCredential = (purpose: string) =>
+    mode === "dev"
+      ? createHash("sha256").update(`local-demo-only:${workspace}:${purpose}`).digest("hex")
+      : randomUUID();
   const env = {
     ...process.env,
     RETURNS_RUN_ID: id,
@@ -413,11 +485,24 @@ export async function runEnvironment(
     API_PORT: String(apiPort),
     WEB_PORT: String(webPort),
     WEB_ORIGIN: `http://127.0.0.1:${webPort}`,
+    SIMULATOR_DATABASE_URL: `postgres://simulator_admin:${simulatorPassword}@127.0.0.1:${simulatorDbPort}/payment_simulator`,
+    SIMULATOR_PORT: String(simulatorPort),
+    SIMULATOR_URL: `http://127.0.0.1:${simulatorPort}`,
+    SIMULATOR_API_TOKEN: localCredential("provider-http"),
+    SIMULATOR_ADMIN_TOKEN: localCredential("provider-controls"),
+    SIMULATOR_SIGNING_SECRET: localCredential("event-signing"),
+    SIMULATOR_DELIVERY_AUTOSTART: mode === "dev" ? "1" : "0",
+    PAYMENT_WEBHOOK_URL: `http://127.0.0.1:${apiPort}/api/provider-events`,
   };
   await writeFile(join(directory, "compose.yaml"), await readFile(join(root, "compose.yaml")));
   await writeFile(
     join(directory, "compose.env"),
-    `RETURNS_RUN_ID=${id}\nRETURNS_WORKSPACE=${workspace}\nRETURNS_DB_PORT=${dbPort}\nRETURNS_DB_PASSWORD=${password}\nRETURNS_SUBNET=${subnet}\n`,
+    `RETURNS_RUN_ID=${id}\nRETURNS_WORKSPACE=${workspace}\nRETURNS_DB_PORT=${dbPort}\nRETURNS_DB_PASSWORD=${password}\nRETURNS_SUBNET=${subnet}\nSIMULATOR_DB_PORT=${simulatorDbPort}\nSIMULATOR_DB_PASSWORD=${simulatorPassword}\n`,
+  );
+  await writeFile(
+    join(directory, "simulator.json"),
+    JSON.stringify({ url: env.SIMULATOR_URL, adminToken: env.SIMULATOR_ADMIN_TOKEN }),
+    { mode: 0o600 },
   );
   await save(manifest);
   let cleaning: Promise<void> | undefined;
@@ -479,6 +564,18 @@ export async function runEnvironment(
       }
     }
     await prepareDatabase(env.DATABASE_URL, id, mode !== "dev");
+    await prepareSimulatorDatabase(env.SIMULATOR_DATABASE_URL, id, mode !== "dev");
+    const simulator = await launch(
+      manifest,
+      ["--import", "tsx", "apps/simulator/src/api.ts"],
+      simulatorEnvironment(env),
+    );
+    manifest.simulatorPid = simulator.pid;
+    await save(manifest);
+    await waitFor(
+      `${env.SIMULATOR_URL}/health`,
+      (body) => simulatorHealth.allows(body) && body.runId === id,
+    );
     if (process.env.RETURNS_INJECT_STARTUP_FAILURE === "1")
       throw new Error("Injected startup failure");
     manifest.state = "running";
@@ -492,7 +589,11 @@ export async function runEnvironment(
         env,
       );
     else {
-      const api = await launch(manifest, ["--import", "tsx", "apps/server/src/api.ts"], env);
+      const api = await launch(
+        manifest,
+        ["--import", "tsx", "apps/server/src/api.ts"],
+        applicationEnvironment(env),
+      );
       await waitFor(
         `http://127.0.0.1:${apiPort}/api/health`,
         (body) => healthResponse.allows(body) && body.runId === id,
@@ -500,13 +601,15 @@ export async function runEnvironment(
       const web = await launch(
         manifest,
         ["node_modules/vite/bin/vite.js", "--config", "apps/web/vite.config.ts"],
-        env,
+        applicationEnvironment(env),
       );
-      console.log(`Web http://127.0.0.1:${webPort}; API http://127.0.0.1:${apiPort}; ${id}`);
+      console.log(
+        `Web http://127.0.0.1:${webPort}; API http://127.0.0.1:${apiPort}; simulator ${env.SIMULATOR_URL}; ${id}`,
+      );
       await Promise.race([
         stopped,
         new Promise<void>((_, reject) => {
-          for (const child of [api, web, ...(lease ? [lease] : [])])
+          for (const child of [api, web, simulator, ...(lease ? [lease] : [])])
             child.once("exit", (code) => reject(new Error(`Service exited (${code})`)));
         }),
       ]);
@@ -515,7 +618,9 @@ export async function runEnvironment(
     manifest.state = "failed";
     console.error(
       error instanceof Error
-        ? error.message.replaceAll(password, "[redacted]")
+        ? error.message
+            .replaceAll(password, "[redacted]")
+            .replaceAll(simulatorPassword, "[redacted]")
         : "Environment failed",
     );
     const appLogs = await Promise.all(
@@ -533,10 +638,12 @@ export async function runEnvironment(
       databaseLogs = "Compose diagnostics unavailable";
     }
     const logs =
-      `${error instanceof Error ? error.message : "Environment failed"}\n${appLogs.join("\n")}\n${databaseLogs}`.replaceAll(
-        password,
-        "[redacted]",
-      );
+      `${error instanceof Error ? error.message : "Environment failed"}\n${appLogs.join("\n")}\n${databaseLogs}`
+        .replaceAll(password, "[redacted]")
+        .replaceAll(simulatorPassword, "[redacted]")
+        .replaceAll(env.SIMULATOR_API_TOKEN, "[redacted]")
+        .replaceAll(env.SIMULATOR_ADMIN_TOKEN, "[redacted]")
+        .replaceAll(env.SIMULATOR_SIGNING_SECRET, "[redacted]");
     await writeFile(join(root, ".local", "last-failure.log"), logs.slice(-1024 * 1024));
     throw new Error(`Environment ${id} failed; see .local/last-failure.log`);
   } finally {
@@ -551,7 +658,7 @@ async function main() {
   const action = process.argv[2] ?? "doctor";
   if (action === "doctor") {
     await preflight();
-    for (const port of [4320, 4321, 4322, 55432]) await freePort(port);
+    for (const port of [4320, 4321, 4322, 55432, 55433]) await freePort(port);
     return;
   }
   if (action === "integration" || action === "verify" || action === "dev") {

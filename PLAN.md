@@ -14,7 +14,7 @@ and merge timestamps as work finishes, never invent them.
 
 Execution is now authorized through the complete remaining plan, including
 commits, pushes, draft PRs, checks, and actual merges. Implementation deliveries 1
-and 2 are merged. Delivery 3 has local decision/inspection code and verification.
+through 3 are merged. Delivery 4 has local simulator code and verification.
 
 Build a local portfolio application for Kleiton, a senior engineer in Brazil
 targeting international remote roles. Recruiters should recognize the commerce
@@ -605,7 +605,7 @@ commit `7b2fa99`, merged as `2992d18` after documentation checks.
 GitHub's merged PR record is authoritative; this file cannot contain its own
 future merge SHA.
 
-Deliveries 4-9 have not started. During each delivery PR, add its URL, branch, included
+Deliveries 5-9 have not started. During each delivery PR, add its URL, branch, included
 commits, and actual checks here. Include
 prior merge metadata in the next log update. Do not create another PR merely to
 record this documentation PR's merge SHA.
@@ -682,6 +682,39 @@ check showed the detail contained within the viewport; narrow screenshot capture
 timed out, so complete responsive visual review remains in delivery 7. The browser
 size was restored, its task tab closed, and preview teardown verified. Test
 resources were removed; the project demo volume remains for subsequent work.
+[GitHub PR #5](https://github.com/KleitonBarone/returns-and-refunds/pull/5) includes
+commits `3e60cb8` and `4aaaf0b`. CI passed on `4aaaf0b`; it merged as `d6e868d`
+on October 21, 2026.
+
+### Implementation delivery 4. Persistent payment simulator
+
+Branch `feat/payment-simulator` adds a separate PostgreSQL cluster, provider HTTP
+contract, idempotency/capture checks, independent ledger, failure controls, signed
+event scheduling and leased delivery. The supervisor migrates/seeds and probes it,
+tracks its process and ports, and tears down both databases. Application child
+processes receive neither provider SQL nor control credentials. The local inspect
+and control commands verify the running checkout before accessing diagnostics.
+
+The first commit groups simulator transport, persistence, events, and their
+contract tests because receipt/ledger/event scheduling is one transaction. The
+second adds process-restart verification, local control commands, and documentation.
+
+Local evidence on October 21, 2026: type/lint/format checks, four unit checks,
+29 PostgreSQL/HTTP integration checks, and the production web build pass.
+Simulator tests compare its own ledger for replay, conflicts, concurrent keys,
+capture limits, rejected and retryable operations, rollback when event storage
+rejects a write, dropped/delayed responses, restart persistence, delayed signed
+duplicates, failed-delivery backoff, and stale
+sender fencing. SQL/control isolation is verified. Full contract details and
+limits are in `docs/payment-simulator.md`.
+
+Lifecycle verification passed two fresh paired environments, preserved app/provider
+state through migration/seed reruns and actual simulator process restart, and
+removed both databases plus simulator processes after success, injected startup
+failure, and abrupt supervisor termination. Unrelated fixtures/networks survived.
+Development startup and the inspect/control commands also passed; the control
+was restored to success afterward. Shutdown retains only the two project demo
+volumes for subsequent development. The pinned PostgreSQL image is reused.
 Remote PR/merge evidence follows in the next delivery log update.
 
 ## Final acceptance

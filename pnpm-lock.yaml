@@ -75,6 +75,8 @@ importers:
 
   apps/server: {}
 
+  apps/simulator: {}
+
   apps/web: {}
 
   packages/contracts: {}
