@@ -6,7 +6,13 @@ import type { Database } from "../apps/server/src/db.ts";
 import { refundAttempts, refundJobs, refundOperations } from "../apps/server/src/schema.ts";
 import { returnDetailContract } from "../packages/contracts/src/index.ts";
 import { simulatorDiagnostics } from "../packages/contracts/src/payment.ts";
-import { crashRefundWorker, type manifestType, restartRefundWorker } from "./environment.ts";
+import {
+  crashRefundWorker,
+  type manifestType,
+  restartApi,
+  restartRefundWorker,
+  restartSimulator,
+} from "./environment.ts";
 
 async function until(check: () => Promise<boolean>, message: string) {
   const deadline = Date.now() + 15000;
@@ -61,29 +67,33 @@ export async function verifyRefundRestart(
     assert.equal(response.status, expected);
     return returnDetailContract.assert(await response.json());
   }
-  const request = await post(
-    "returns",
-    "customer-maya",
-    {
-      orderId: "order-1042",
-      requestKey: randomUUID(),
-      reason: "Verify recovery after worker termination",
-      items: [{ lineId: "order-1042-tee", quantity: 1 }],
-    },
-    201,
-  );
-  for (const [action, expectedStatus, persona] of [
-    ["approve", "requested", "support-ava"],
-    ["receive", "approved", "warehouse-jules"],
-    ["pass_inspection", "received", "warehouse-jules"],
-  ] as const) {
-    await post(`returns/${request.id}/actions`, persona, {
-      action,
-      expectedStatus,
-      reason: "Verified for restart scenario",
-      correlationId: randomUUID(),
-    });
+  async function inspectedRequest() {
+    const request = await post(
+      "returns",
+      "customer-maya",
+      {
+        orderId: "order-1042",
+        requestKey: randomUUID(),
+        reason: "Verify recovery after worker termination",
+        items: [{ lineId: "order-1042-tee", quantity: 1 }],
+      },
+      201,
+    );
+    for (const [action, expectedStatus, persona] of [
+      ["approve", "requested", "support-ava"],
+      ["receive", "approved", "warehouse-jules"],
+      ["pass_inspection", "received", "warehouse-jules"],
+    ] as const) {
+      await post(`returns/${request.id}/actions`, persona, {
+        action,
+        expectedStatus,
+        reason: "Verified for restart scenario",
+        correlationId: randomUUID(),
+      });
+    }
+    return request;
   }
+  const request = await inspectedRequest();
   await control("payments", {
     merchantId: "northline",
     paymentRef: "payment-order-1042",
@@ -166,5 +176,74 @@ export async function verifyRefundRestart(
   assert.equal(diagnostics.ledger.filter((entry) => entry.refundId === providerId).length, 1);
   console.log(
     "Verified actual worker crash after provider write, reclaimed lease, and one financial refund.",
+  );
+  const uncertain = await inspectedRequest();
+  await control("payments", {
+    merchantId: "northline",
+    paymentRef: "payment-order-1042",
+    mode: "drop_response",
+    responseDelayMs: 0,
+    eventDelayMs: 0,
+    eventCopies: 1,
+  });
+  const queued = await post(
+    `returns/${uncertain.id}/refund`,
+    "finance-sam",
+    {
+      expectedAmountMinor: 3500,
+      reason: "Verify status recovery through full service restart",
+      correlationId: randomUUID(),
+    },
+    202,
+  );
+  assert.ok(queued.refund);
+  const uncertainId = queued.refund.id;
+  await until(async () => {
+    const [result] = await db
+      .select()
+      .from(refundOperations)
+      .where(eq(refundOperations.id, uncertainId));
+    return result?.status === "unknown";
+  }, "Dropped response did not become unknown");
+  await restartApi(manifest, env);
+  await restartRefundWorker(manifest, env);
+  await restartSimulator(manifest, env);
+  const checked = await post(
+    `returns/${uncertain.id}/refund/check`,
+    "finance-sam",
+    { reason: "Recover the original payment after service restart", correlationId: randomUUID() },
+    202,
+  );
+  assert.equal(checked.status, "closed");
+  assert.equal(checked.refund?.status, "succeeded");
+  assert.equal(checked.refund?.id, uncertainId);
+  assert.ok(checked.refund?.providerReceiptId);
+  const uncertainProviderId = checked.refund.providerReceiptId;
+  await control("events", {
+    refundId: uncertainProviderId,
+    status: "failed",
+    delayMs: 0,
+    copies: 2,
+  });
+  await control("deliver", { refundId: uncertainProviderId });
+  const observed = simulatorDiagnostics.assert(await control("diagnostics"));
+  assert.equal(observed.ledger.filter((entry) => entry.refundId === uncertainProviderId).length, 1);
+  const delivered = observed.deliveries.filter((entry) => entry.refundId === uncertainProviderId);
+  assert.equal(delivered.length, 4);
+  assert.ok(delivered.every((entry) => entry.deliveredAt && entry.lastStatus === 200));
+  const finalResponse = await fetch(`${apiUrl}/api/returns/${uncertain.id}`, {
+    headers: await session("customer-maya"),
+    signal: AbortSignal.timeout(3000),
+  });
+  const final = returnDetailContract.assert(await finalResponse.json());
+  assert.equal(final.refund?.status, "succeeded");
+  assert.equal(final.history.filter((entry) => entry.event === "Refund succeeded").length, 1);
+  const recoveryAttempts = await db
+    .select()
+    .from(refundAttempts)
+    .where(eq(refundAttempts.operationId, uncertainId));
+  assert.equal(recoveryAttempts.length, 1, "status recovery must not submit another attempt");
+  console.log(
+    "Verified lost-response recovery after actual API/worker/simulator restart, delayed processing, contradictory duplicate events, and one ledger refund.",
   );
 }
