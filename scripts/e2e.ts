@@ -9,6 +9,7 @@ import {
   foreground,
   launch,
   launchApi,
+  prepareBrowserTemp,
   restartApi,
   restartRefundWorker,
   restartSimulator,
@@ -20,7 +21,7 @@ import {
   waitFor,
 } from "./environment.ts";
 
-async function preserveArtifacts(directory: string, failed: boolean) {
+async function preserveArtifacts(directory: string, failed: boolean, browserTemp: string) {
   const source = join(directory, "browser-results");
   if (!existsSync(source)) return;
   const target = join(root, ".local", failed ? "e2e-last-failure" : "e2e-last-success");
@@ -48,7 +49,11 @@ async function preserveArtifacts(directory: string, failed: boolean) {
   await copy(source, target);
   await writeFile(
     join(target, "retention.json"),
-    JSON.stringify({ files, bytes, limitBytes: 32 * 1024 * 1024, source: directory }, null, 2),
+    JSON.stringify(
+      { files, bytes, limitBytes: 32 * 1024 * 1024, source: directory, browserTemp },
+      null,
+      2,
+    ),
   );
 }
 
@@ -58,8 +63,7 @@ export async function runBrowserEnvironment(
 ) {
   await runEnvironment("e2e", async (env, manifest) => {
     const directory = runPath(manifest.id);
-    const scratch = join(directory, "browser-temp");
-    await mkdir(scratch);
+    const scratch = await prepareBrowserTemp(manifest);
     const browserEnv = {
       ...env,
       PLAYWRIGHT_BROWSERS_PATH: join(root, ".local", "browsers"),
@@ -68,6 +72,10 @@ export async function runBrowserEnvironment(
       TMP: scratch,
       TEMP: scratch,
       TMPDIR: scratch,
+      CHROME_CONFIG_HOME: join(scratch, "config"),
+      XDG_CONFIG_HOME: join(scratch, "config"),
+      XDG_CACHE_HOME: join(scratch, "cache"),
+      XDG_DATA_HOME: join(scratch, "data"),
     };
     await foreground(
       manifest,
@@ -153,7 +161,7 @@ export async function runBrowserEnvironment(
       failed = false;
     } finally {
       unwatchFile(commandPath);
-      await preserveArtifacts(directory, failed);
+      await preserveArtifacts(directory, failed, scratch);
     }
   });
 }

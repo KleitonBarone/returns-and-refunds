@@ -143,7 +143,10 @@ Each browser run replaces either `.local/e2e-last-success` or
 retention summary. Failures include the assertion report, screenshot, accessible
 page state, and bounded console errors. Traces and video are disabled because
 they can record session credentials. Browser profiles and crash files live below
-the run directory and are removed along with its verified processes and services.
+the run directory on Windows. Unix runs use a private, short `/tmp/rr-<hash>`
+directory so Chromium's socket path stays within the OS limit. Cleanup verifies
+its run/workspace owner marker before removing it, including after interruption.
+Both paths are removed along with the verified browser processes and services.
 CI keeps failure artifacts for seven days. The browser cache is intentionally
 reused between runs; it can be removed when this checkout no longer needs tests.
 Actual results and captured views are in

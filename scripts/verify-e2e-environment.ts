@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { type } from "arktype";
 import { browserProcessRecord } from "./browser-contracts.ts";
 import { runBrowserEnvironment } from "./e2e.ts";
-import { cleanup, identity, manifestType, root, runPath } from "./environment.ts";
+import { browserTempPath, cleanup, identity, manifestType, root, runPath } from "./environment.ts";
 
 console.log("Verifying expected browser failure and retained diagnostics.");
 const failureStarted = Date.now();
@@ -18,10 +18,11 @@ assert.ok(
   (await stat(retentionPath)).mtimeMs >= failureStarted,
   "diagnostics must belong to this run",
 );
-const retention = type({ source: "string" }).assert(
+const retention = type({ source: "string", browserTemp: "string" }).assert(
   JSON.parse(await readFile(retentionPath, "utf8")),
 );
 await assert.rejects(stat(retention.source), "failed run must finish verified teardown");
+await assert.rejects(stat(retention.browserTemp), { code: "ENOENT" });
 const reportText = await readFile(join(artifacts, "report.json"), "utf8");
 const report = type({ stats: { unexpected: "number", expected: "number" } }).assert(
   JSON.parse(reportText),
@@ -103,6 +104,16 @@ try {
   const exited = new Promise<void>((accept) => child.once("exit", () => accept()));
   child.kill("SIGKILL");
   await exited;
+  const scratch = await browserTempPath(recorded);
+  const ownerPath = join(scratch, "owner.json");
+  const originalOwner = await readFile(ownerPath, "utf8");
+  try {
+    await writeFile(ownerPath, JSON.stringify({ runId: recorded.id, workspace: "unrelated" }));
+    await assert.rejects(cleanup(recorded), /temporary storage ownership mismatch/);
+    assert.ok(existsSync(scratch), "mismatched temporary storage must survive cleanup");
+  } finally {
+    await writeFile(ownerPath, originalOwner);
+  }
   await cleanup(recorded);
   assert.equal(
     await identity(browser.process.pid),
@@ -110,6 +121,7 @@ try {
     "browser must exit with its owned services",
   );
   await assert.rejects(stat(runPath(recorded.id)));
+  await assert.rejects(stat(scratch), { code: "ENOENT" });
 } finally {
   if (child.exitCode === null && child.signalCode === null) {
     assert.deepEqual(await identity(child.pid), owner);
@@ -125,5 +137,5 @@ try {
   }
 }
 console.log(
-  `Verified bounded failure evidence (${retained.length} files, ${bytes} bytes), browser termination, and complete abandoned-run cleanup.`,
+  `Verified bounded failure evidence (${retained.length} files, ${bytes} bytes), browser termination, refusal of mismatched temporary storage, and complete abandoned-run cleanup.`,
 );

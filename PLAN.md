@@ -841,7 +841,7 @@ The browser runner pins Playwright and Chromium, builds the app, and owns fresh
 app/provider PostgreSQL instances, API, worker, simulator, web server, and browser
 on disposable loopback ports. It checks actual run identity before testing and
 records process identity for cleanup after supervisor death. Browser profiles and
-crash data remain under the run directory. Latest success/failure diagnostics
+crash data use owned temporary storage. Latest success/failure diagnostics
 replace previous artifacts with a 32 MiB/100-file cap. Traces/video are disabled
 to avoid recording session credentials; assertion reports, screenshots, accessible
 page state, and bounded console errors provide failure evidence. CI installs the
@@ -872,7 +872,23 @@ worker-crash recovery, service restarts, failed startup, abrupt interruption,
 abandoned-run cleanup, and preservation of unrelated Docker resources. All run
 directories and disposable resources were removed. The two earlier development
 volumes remain preserved, and the dedicated matching Chromium cache is retained
-for reuse at about 441 MiB. Remote PR and merge evidence follow in the next update.
+for reuse at about 441 MiB.
+
+[GitHub PR #9](https://github.com/KleitonBarone/returns-and-refunds/pull/9) contains
+`1bb4dc7` and `fa2f1cc`. Its first CI run passed the earlier checks but Chromium
+aborted before browser journeys because its Unix socket path under the long
+checkout directory exceeded the OS limit. A Linux reproduction with the pinned
+Node/browser versions confirmed the exact failure. Unix browser data now uses
+a short, private `/tmp/rr-<hash>` directory derived from run/workspace identity.
+Configuration and cache paths stay inside it. Cleanup checks its owner marker
+and canonical path, refuses mismatched ownership, and removes it after stopping
+the owned browser. Failure and supervisor-death checks assert that storage is
+gone. Windows keeps its owned storage under the run directory. Both browser
+journeys passed in two fresh Linux runs, and Linux failure, ownership-refusal,
+and interruption verification passed. Windows storage/interruption checks also
+passed. Temporary Linux tools, dependencies, browser cache, and source checkout
+were removed after verified teardown. Type/lint/format checks pass. Updated CI
+and merge evidence follow after the fix push.
 
 ## Final acceptance
 

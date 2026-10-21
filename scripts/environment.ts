@@ -118,17 +118,47 @@ async function matches(expected: typeof processIdentity.infer) {
   const current = await identity(expected.pid);
   return current?.birth === expected.birth && current.commandHash === expected.commandHash;
 }
-// Browser profiles and crash data live below a unique run directory, including after parent death.
-async function ownedBrowserProcesses(directory: string) {
-  const marker = resolve(directory);
-  if (relative(join(root, ".local", "runs"), marker).startsWith(".."))
+// Unix socket names must stay short even when the checkout path is long.
+export async function browserTempPath(manifest: Manifest) {
+  return windows
+    ? join(runPath(manifest.id), "browser-temp")
+    : join(
+        await realpath("/tmp"),
+        `rr-${createHash("sha256").update(`${manifest.workspace}:${manifest.id}`).digest("hex").slice(0, 16)}`,
+      );
+}
+export async function prepareBrowserTemp(manifest: Manifest) {
+  if (manifest.mode !== "e2e") throw new Error("Browser temporary storage requires an e2e run");
+  const directory = await browserTempPath(manifest);
+  if (!windows && Buffer.byteLength(directory) > 40)
+    throw new Error("Browser temporary path is too long for Unix sockets");
+  await mkdir(directory, { mode: 0o700 });
+  await writeFile(
+    join(directory, "owner.json"),
+    JSON.stringify({ runId: manifest.id, workspace: manifest.workspace }),
+    { flag: "wx", mode: 0o600 },
+  );
+  return directory;
+}
+async function verifyBrowserTemp(manifest: Manifest, directory: string) {
+  if ((await realpath(directory)) !== resolve(directory))
+    throw new Error("Browser temporary storage is redirected");
+  const owner = type({ runId: "string", workspace: "string" }).assert(
+    JSON.parse(await readFile(join(directory, "owner.json"), "utf8")),
+  );
+  if (owner.runId !== manifest.id || owner.workspace !== manifest.workspace)
+    throw new Error("Browser temporary storage ownership mismatch");
+}
+async function ownedBrowserProcesses(directory: string, scratch: string) {
+  const markers = [resolve(directory), scratch];
+  if (relative(join(root, ".local", "runs"), resolve(directory)).startsWith(".."))
     throw new Error("Browser marker leaves run storage");
   const pids = windows
     ? command("powershell.exe", [
         "-NoProfile",
         "-NonInteractive",
         "-Command",
-        `Get-CimInstance Win32_Process | Where-Object { $_.Name -in @('chrome.exe', 'chrome_crashpad_handler.exe') -and $_.CommandLine -and $_.CommandLine.IndexOf('${marker.replaceAll("'", "''")}', [StringComparison]::OrdinalIgnoreCase) -ge 0 } | Select-Object -ExpandProperty ProcessId`,
+        `Get-CimInstance Win32_Process | Where-Object { $_.Name -in @('chrome.exe', 'chrome_crashpad_handler.exe') -and $_.CommandLine -and (${markers.map((marker) => `$_.CommandLine.IndexOf('${marker.replaceAll("'", "''")}', [StringComparison]::OrdinalIgnoreCase) -ge 0`).join(" -or ")}) } | Select-Object -ExpandProperty ProcessId`,
       ])
         .split(/\s+/)
         .filter(Boolean)
@@ -138,7 +168,8 @@ async function ownedBrowserProcesses(directory: string) {
   for (const pid of pids) {
     if (!windows) {
       try {
-        if (!(await readFile(`/proc/${pid}/cmdline`, "utf8")).includes(marker)) continue;
+        const commandLine = await readFile(`/proc/${pid}/cmdline`, "utf8");
+        if (!markers.some((marker) => commandLine.includes(marker))) continue;
       } catch {
         continue;
       }
@@ -284,6 +315,8 @@ async function cleanup(manifest: Manifest, active = false) {
   }
   const browserRecordPath = join(runPath(manifest.id), "browser-process.json");
   if (manifest.mode === "e2e") {
+    const scratch = await browserTempPath(manifest);
+    if (existsSync(scratch)) await verifyBrowserTemp(manifest, scratch);
     if (existsSync(browserRecordPath)) {
       const browser = browserProcessRecord.assert(
         JSON.parse(await readFile(browserRecordPath, "utf8")),
@@ -291,10 +324,15 @@ async function cleanup(manifest: Manifest, active = false) {
       if (browser.runId !== manifest.id) throw new Error("Browser ownership mismatch");
       await stopChild(browser.process);
     }
-    const remaining = await ownedBrowserProcesses(runPath(manifest.id));
+    const remaining = await ownedBrowserProcesses(runPath(manifest.id), scratch);
     for (const processRecord of remaining.reverse()) await stopChild(processRecord);
-    if ((await ownedBrowserProcesses(runPath(manifest.id))).length)
+    if ((await ownedBrowserProcesses(runPath(manifest.id), scratch)).length)
       throw new Error("Run-owned browser processes remain");
+    if (existsSync(scratch)) {
+      await verifyBrowserTemp(manifest, scratch);
+      if (windows) await safeRemove(scratch);
+      else await rm(scratch, { recursive: true, force: false });
+    }
   }
   const containers = ownedResources(manifest, "ps");
   for (const container of containers) {
