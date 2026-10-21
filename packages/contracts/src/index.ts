@@ -162,8 +162,8 @@ export const returnDetailContract = returnSummaryContract.and({
     toStatus: "string",
     correlationId: "string",
     operationId: "string | null",
-    refundFromStatus: "string | null",
-    refundToStatus: "string | null",
+    refundFromStatus: type.enumerated(...refundStates).or("null"),
+    refundToStatus: type.enumerated(...refundStates).or("null"),
   }).array(),
   reviews: type({
     kind: "'decision' | 'inspection'",

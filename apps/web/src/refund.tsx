@@ -7,6 +7,8 @@ import {
   returnDetailContract,
 } from "../../../packages/contracts/src/index.ts";
 import { api } from "./api.ts";
+import { focusConfirmation, focusDetailHeading } from "./focus.ts";
+import { dateTime, refundLabel } from "./format.ts";
 
 const explanations = {
   pending: "The refund is queued. Its amount and items remain reserved.",
@@ -35,6 +37,7 @@ function RecoveryActions({ request }: { request: ReturnView }) {
         client.invalidateQueries({ queryKey: ["return"] }),
         client.invalidateQueries({ queryKey: ["returns"] }),
       ]);
+      focusDetailHeading();
     },
   });
   if (!request.refund || !["unknown", "processing"].includes(request.refund.status)) return null;
@@ -91,12 +94,20 @@ function RecoveryActions({ request }: { request: ReturnView }) {
             <button
               type="button"
               className="primary"
+              ref={focusConfirmation}
               disabled={reason.trim().length < 3 || recover.isPending}
               onClick={() => recover.mutate("retry")}
             >
               {recover.isPending ? "Queuing original refund…" : "Confirm original refund retry"}
             </button>
-            <button type="button" disabled={recover.isPending} onClick={() => setConfirming(false)}>
+            <button
+              type="button"
+              disabled={recover.isPending}
+              onClick={() => {
+                setConfirming(false);
+                focusDetailHeading();
+              }}
+            >
               Cancel
             </button>
           </div>
@@ -128,6 +139,7 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
         client.invalidateQueries({ queryKey: ["return"] }),
         client.invalidateQueries({ queryKey: ["returns"] }),
       ]);
+      focusDetailHeading();
     },
   });
   if (request.refund)
@@ -142,23 +154,19 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
           <strong>{money(request.refund.amountMinor, request.refund.currency)}</strong>
         </div>
         <span className={`status status-refund-${request.refund.status}`}>
-          {request.refund.status === "unknown" ? "Outcome unknown" : request.refund.status}
+          {refundLabel(request.refund.status)}
         </span>
-        <p>{explanations[request.refund.status]}</p>
-        {request.refund.message && <p>{request.refund.message}</p>}
+        <p>{request.refund.message ?? explanations[request.refund.status]}</p>
+        {actor.role === "customer" && request.refund.status === "unknown" && (
+          <p>
+            Finance will check the original payment. Your items and refund amount remain reserved.
+          </p>
+        )}
         {request.refund.providerReceiptId && (
           <small>Payment receipt {request.refund.providerReceiptId}</small>
         )}
         {request.refund.checkedAt && (
-          <small>
-            Last checked{" "}
-            {new Intl.DateTimeFormat("en-US", {
-              dateStyle: "medium",
-              timeStyle: "short",
-              timeZone: "UTC",
-            }).format(new Date(request.refund.checkedAt))}{" "}
-            UTC
-          </small>
+          <small>Last checked {dateTime(request.refund.checkedAt)}</small>
         )}
         {actor.role === "finance" && (
           <details className="payment-reference">
@@ -202,6 +210,7 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
             <button
               type="button"
               className="primary"
+              ref={focusConfirmation}
               disabled={submit.isPending}
               onClick={() => submit.mutate()}
             >
@@ -209,7 +218,14 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
                 ? "Queuing refund…"
                 : `Confirm ${money(request.amountMinor, request.currency)} refund`}
             </button>
-            <button type="button" disabled={submit.isPending} onClick={() => setConfirming(false)}>
+            <button
+              type="button"
+              disabled={submit.isPending}
+              onClick={() => {
+                setConfirming(false);
+                focusDetailHeading();
+              }}
+            >
               Cancel
             </button>
           </div>

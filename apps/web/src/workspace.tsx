@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type Actor,
   money,
@@ -11,26 +11,8 @@ import {
 } from "../../../packages/contracts/src/index.ts";
 import { ReturnActions } from "./actions.tsx";
 import { api } from "./api.ts";
+import { date, dateTime, refundLabel, stateLabel } from "./format.ts";
 import { RefundPanel } from "./refund.tsx";
-
-export function date(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(value));
-}
-export function stateLabel(value: string) {
-  return value.replaceAll("_", " ");
-}
-function dateTime(value: string) {
-  return `${new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(new Date(value))} UTC`;
-}
 
 function ReturnForm({ order, onCreated }: { order: OrderView; onCreated: (id: string) => void }) {
   const client = useQueryClient();
@@ -61,7 +43,9 @@ function ReturnForm({ order, onCreated }: { order: OrderView; onCreated: (id: st
     <section className="detail-pane" aria-labelledby="request-title">
       <div className="pane-heading">
         <span>Customer return</span>
-        <h2 id="request-title">{order.number}</h2>
+        <h2 id="request-title" tabIndex={-1}>
+          {order.number}
+        </h2>
         <p>Delivered {date(order.deliveredAt)}</p>
       </div>
       <div className={`notice ${order.eligible ? "notice-info" : "notice-warning"}`}>
@@ -154,7 +138,9 @@ export function ReturnDetail({ request, actor }: { request: ReturnView; actor: A
     <section className="detail-pane" aria-labelledby="return-title">
       <div className="pane-heading">
         <span>Return {request.id.slice(0, 8).toUpperCase()}</span>
-        <h2 id="return-title">{request.orderNumber}</h2>
+        <h2 id="return-title" tabIndex={-1}>
+          {request.orderNumber}
+        </h2>
         <span className={`status status-${request.status}`}>{stateLabel(request.status)}</span>
       </div>
       <dl className="detail-facts">
@@ -171,6 +157,17 @@ export function ReturnDetail({ request, actor }: { request: ReturnView; actor: A
           <dd>{money(request.amountMinor, request.currency)}</dd>
         </div>
       </dl>
+      {request.status === "requested" && (
+        <p className="notice notice-info">Support will review this request next.</p>
+      )}
+      {request.status === "approved" && (
+        <p className="notice notice-info">
+          Approved. Waiting for the warehouse to receive the items.
+        </p>
+      )}
+      {request.status === "received" && (
+        <p className="notice notice-info">Items received. Warehouse inspection is next.</p>
+      )}
       {request.closureReason && request.closureReason !== "refunded" && (
         <div className="notice notice-warning">
           <strong>
@@ -226,6 +223,12 @@ export function ReturnDetail({ request, actor }: { request: ReturnView; actor: A
             <small>
               {event.actorName}, {dateTime(event.at)}
             </small>
+            {event.refundToStatus && (
+              <span className="history-state">
+                {event.refundFromStatus ? `${refundLabel(event.refundFromStatus)} to ` : ""}
+                {refundLabel(event.refundToStatus)}
+              </span>
+            )}
           </li>
         ))}
       </ol>
@@ -237,6 +240,11 @@ export function Workspace({ actor }: { actor: Actor }) {
   const customer = actor.role === "customer";
   const [orderId, setOrderId] = useState<string | null>(null);
   const [returnId, setReturnId] = useState<string | null>(null);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const detailPane = useRef<HTMLDivElement>(null);
+  const queuePane = useRef<HTMLElement>(null);
+  const previouslySelected = useRef(false);
   const orders = useQuery({
     queryKey: ["orders", actor.id],
     queryFn: async () => ordersContract.assert(await api("/orders")),
@@ -263,6 +271,32 @@ export function Workspace({ actor }: { actor: Actor }) {
         : false,
   });
   const order = orders.data?.find((item) => item.id === orderId);
+  const selectedId = order?.id ?? detail.data?.id;
+  const hasSelection = Boolean(orderId || returnId);
+  useEffect(() => {
+    if (!selectedId) return;
+    const heading = detailPane.current?.querySelector<HTMLElement>("h2");
+    heading?.focus();
+    detailPane.current?.scrollIntoView({ block: "start" });
+  }, [selectedId]);
+  useEffect(() => {
+    if (previouslySelected.current && !hasSelection) queuePane.current?.focus();
+    previouslySelected.current = hasSelection;
+  }, [hasSelection]);
+  const visibleReturns = returns.data?.filter((item) => {
+    const matchesFilter =
+      filter === "all" ||
+      (filter === "open" && item.status !== "closed") ||
+      (filter === "ready" && item.status === "inspection_passed" && !item.refundStatus) ||
+      (filter === "unknown" && item.refundStatus === "unknown") ||
+      (filter === "closed" && item.status === "closed");
+    return (
+      matchesFilter &&
+      `${item.orderNumber} ${item.customerName} ${item.id}`
+        .toLowerCase()
+        .includes(search.trim().toLowerCase())
+    );
+  });
   return (
     <>
       <div className="page-heading">
@@ -277,8 +311,10 @@ export function Workspace({ actor }: { actor: Actor }) {
         </div>
         <div className="role-label">{actor.role} workspace</div>
       </div>
-      <div className="workspace-grid">
+      <div className={`workspace-grid ${hasSelection ? "has-selection" : ""}`}>
         <section
+          ref={queuePane}
+          tabIndex={-1}
           className="queue-pane"
           aria-label={customer ? "Customer orders and returns" : "Merchant return queue"}
         >
@@ -289,6 +325,9 @@ export function Workspace({ actor }: { actor: Actor }) {
               {orders.isError && (
                 <p className="error" role="alert">
                   {orders.error.message}
+                  <button type="button" onClick={() => orders.refetch()}>
+                    Try again
+                  </button>
                 </p>
               )}
               {orders.data?.map((item) => (
@@ -296,6 +335,7 @@ export function Workspace({ actor }: { actor: Actor }) {
                   type="button"
                   key={item.id}
                   className={`order-tile ${item.id === orderId ? "selected" : ""}`}
+                  aria-current={item.id === orderId ? "true" : undefined}
                   onClick={() => {
                     setOrderId(item.id);
                     setReturnId(null);
@@ -314,12 +354,38 @@ export function Workspace({ actor }: { actor: Actor }) {
           )}
           <div className="section-heading">
             <h2>{customer ? "Your returns" : "Queue"}</h2>
-            <span>{returns.data?.length ?? 0} requests</span>
+            <span>
+              {visibleReturns?.length ?? 0} of {returns.data?.length ?? 0}
+            </span>
+          </div>
+          <div className="queue-controls">
+            <label className="field">
+              Find returns
+              <input
+                type="search"
+                placeholder="Order, customer, or return ID"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              Return filter
+              <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+                <option value="all">All returns</option>
+                <option value="open">Open returns</option>
+                <option value="ready">Ready for finance</option>
+                <option value="unknown">Needs status check</option>
+                <option value="closed">Closed returns</option>
+              </select>
+            </label>
           </div>
           {returns.isPending && <p role="status">Loading returns…</p>}
           {returns.isError && (
             <p className="error" role="alert">
               {returns.error.message}
+              <button type="button" onClick={() => returns.refetch()}>
+                Try again
+              </button>
             </p>
           )}
           {returns.data?.length === 0 && (
@@ -332,11 +398,28 @@ export function Workspace({ actor }: { actor: Actor }) {
               </p>
             </div>
           )}
-          {returns.data?.map((item) => (
+          {returns.data && returns.data.length > 0 && visibleReturns?.length === 0 && (
+            <div className="empty-state">
+              <h3>No matching returns</h3>
+              <p>Change the search or filter to see other requests.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setFilter("all");
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+          {visibleReturns?.map((item) => (
             <button
               type="button"
               key={item.id}
               className={`queue-row ${item.id === returnId ? "selected" : ""}`}
+              aria-current={item.id === returnId ? "true" : undefined}
+              aria-label={`Return ${item.id.slice(0, 8).toUpperCase()} for ${item.orderNumber}, ${item.customerName}, ${money(item.amountMinor, item.currency)}, ${stateLabel(item.status)}${item.refundStatus ? `, refund ${refundLabel(item.refundStatus).toLowerCase()}` : ""}`}
               onClick={() => {
                 setReturnId(item.id);
                 setOrderId(null);
@@ -345,21 +428,35 @@ export function Workspace({ actor }: { actor: Actor }) {
               <div>
                 <strong>{item.orderNumber}</strong>
                 <span>{item.customerName}</span>
-                <small>{date(item.requestedAt)}</small>
+                <small>
+                  {date(item.requestedAt)} · Return {item.id.slice(0, 8).toUpperCase()}
+                </small>
               </div>
               <div className="queue-value">
                 <strong>{money(item.amountMinor, item.currency)}</strong>
                 <span className={`status status-${item.status}`}>{stateLabel(item.status)}</span>
                 {item.refundStatus && (
                   <span className={`status status-refund-${item.refundStatus}`}>
-                    Refund {item.refundStatus}
+                    Refund {refundLabel(item.refundStatus).toLowerCase()}
                   </span>
                 )}
               </div>
             </button>
           ))}
         </section>
-        <div>
+        <div ref={detailPane} className="selected-pane">
+          {hasSelection && (
+            <button
+              type="button"
+              className="back-to-queue"
+              onClick={() => {
+                setOrderId(null);
+                setReturnId(null);
+              }}
+            >
+              {customer ? "Back to orders and returns" : "Back to return queue"}
+            </button>
+          )}
           {order ? (
             <ReturnForm
               key={order.id}
@@ -389,6 +486,9 @@ export function Workspace({ actor }: { actor: Actor }) {
               {detail.isError && (
                 <p role="alert" className="error">
                   {detail.error.message}
+                  <button type="button" onClick={() => detail.refetch()}>
+                    Try again
+                  </button>
                 </p>
               )}
             </section>

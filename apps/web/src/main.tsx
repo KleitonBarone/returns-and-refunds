@@ -9,7 +9,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { sessionContract } from "../../../packages/contracts/src/index.ts";
 import { api } from "./api.ts";
-import { date, Workspace } from "./workspace.tsx";
+import { date } from "./format.ts";
+import { Workspace } from "./workspace.tsx";
 import "./style.css";
 
 function App() {
@@ -47,12 +48,16 @@ function App() {
           <span className="demo-clock">
             Local demo · {session.data ? date(session.data.demoNow) : "Connecting"}
           </span>
+          <span className="demo-disclosure">Synthetic orders. No real payments.</span>
           <label>
             Demo persona
             <select
               value={session.data?.actor?.id ?? ""}
-              disabled={switchPersona.isPending}
-              onChange={(event) => switchPersona.mutate(event.target.value)}
+              aria-disabled={switchPersona.isPending}
+              aria-busy={switchPersona.isPending}
+              onChange={(event) => {
+                if (!switchPersona.isPending) switchPersona.mutate(event.target.value);
+              }}
             >
               <option value="" disabled>
                 Choose a persona
@@ -67,7 +72,7 @@ function App() {
           </label>
         </div>
       </header>
-      <main id="main" className="app-main">
+      <main id="main" className="app-main" tabIndex={-1}>
         {session.isError ? (
           <section className="empty-detail">
             <h1>The workspace is unavailable</h1>
