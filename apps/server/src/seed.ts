@@ -1,5 +1,6 @@
 import { DEMO_NOW } from "../../../packages/contracts/src/index.ts";
 import type { Database } from "./db.ts";
+import { allocateMinor } from "./domain.ts";
 import {
   customers,
   environmentIdentity,
@@ -18,6 +19,7 @@ export const personas = [
   { id: "warehouse-jules", name: "Jules Park", role: "warehouse", merchantId: "northline" },
   { id: "finance-sam", name: "Sam Rivera", role: "finance", merchantId: "northline" },
   { id: "customer-other", name: "Noah Smith", role: "customer", merchantId: "other-store" },
+  { id: "support-other", name: "Robin Ellis", role: "support", merchantId: "other-store" },
 ] as const;
 
 export async function seed(db: Database, runId: string, disposable: boolean) {
@@ -115,13 +117,11 @@ export async function seed(db: Database, runId: string, disposable: boolean) {
         await tx
           .insert(orderUnits)
           .values(
-            Array.from({ length: line.quantity }, (_, index) => ({
+            allocateMinor(line.netMinor, line.quantity).map((netMinor, index) => ({
               id: `${line.id}:${index + 1}`,
               lineId: line.id,
               position: index + 1,
-              netMinor:
-                Math.floor(line.netMinor / line.quantity) +
-                (index < line.netMinor % line.quantity ? 1 : 0),
+              netMinor,
             })),
           )
           .onConflictDoNothing();

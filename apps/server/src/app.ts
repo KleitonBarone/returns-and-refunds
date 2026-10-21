@@ -1,17 +1,66 @@
+import cookie from "@fastify/cookie";
+import { type } from "arktype";
 import { eq } from "drizzle-orm";
 import Fastify from "fastify";
+import { requestInput, sessionInput } from "../../../packages/contracts/src/index.ts";
+import { createSession, listPersonas, requireActor, sessionActor } from "./actors.ts";
 import type { readConfig } from "./config.ts";
 import type { Database } from "./db.ts";
+import { HttpError } from "./domain.ts";
+import { listOrders, listReturns, requestReturn, returnDetail } from "./returns.ts";
 import { environmentIdentity } from "./schema.ts";
 
 export async function createApp(db: Database, config: ReturnType<typeof readConfig>) {
   const app = Fastify({ logger: false, bodyLimit: 65536 });
+  await app.register(cookie);
+  app.addHook("onRequest", async (request) => {
+    if (
+      !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
+      request.headers.origin !== config.webOrigin
+    )
+      throw new HttpError(403, "Request origin is not allowed");
+  });
   app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof HttpError)
+      return reply.code(error.statusCode).send({ message: error.message });
     const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
     console.error(cause instanceof Error ? cause.message : "Unexpected API failure");
     return reply
       .code(500)
       .send({ message: "Local service unavailable. Inspect the API diagnostics." });
+  });
+  app.get("/api/session", async (request) => ({
+    actor: await sessionActor(db, request),
+    personas: await listPersonas(db),
+    demoNow: config.demoNow,
+  }));
+  app.post("/api/session", async (request, reply) => {
+    const input = sessionInput(request.body);
+    if (input instanceof type.errors) throw new HttpError(400, input.summary);
+    const { actor, token } = await createSession(db, input.personaId);
+    reply.setCookie("returns_session", token, {
+      path: "/api",
+      httpOnly: true,
+      sameSite: "strict",
+      maxAge: 86400,
+    });
+    return { actor, personas: await listPersonas(db), demoNow: config.demoNow };
+  });
+  app.get("/api/orders", async (request) =>
+    listOrders(db, requireActor(await sessionActor(db, request), "customer"), config.demoNow),
+  );
+  app.get("/api/returns", async (request) =>
+    listReturns(db, requireActor(await sessionActor(db, request))),
+  );
+  app.get<{ Params: { id: string } }>("/api/returns/:id", async (request) =>
+    returnDetail(db, requireActor(await sessionActor(db, request)), request.params.id),
+  );
+  app.post("/api/returns", async (request, reply) => {
+    const actor = requireActor(await sessionActor(db, request), "customer");
+    const input = requestInput(request.body);
+    if (input instanceof type.errors) throw new HttpError(400, input.summary);
+    const result = await requestReturn(db, actor, input, config.demoNow);
+    return reply.code(201).send(result);
   });
   app.get("/api/health", async () => {
     const [identity] = await db
