@@ -24,7 +24,7 @@ const processIdentity = type({ pid: "number.integer > 0", birth: "string", comma
 const manifestType = type({
   id: "string",
   workspace: "string",
-  mode: "'dev' | 'integration' | 'verify' | 'e2e'",
+  mode: "'dev' | 'integration' | 'verify' | 'e2e' | 'demo'",
   createdAt: "string",
   source: "string",
   owner: processIdentity,
@@ -466,28 +466,43 @@ export async function restartApi(manifest: Manifest, env: NodeJS.ProcessEnv) {
   await launchApi(manifest, env);
 }
 export async function stopApi(manifest: Manifest) {
-  const previous = manifest.children.find((child) => child.pid === manifest.apiPid);
+  if (!manifest.apiPid) return;
+  const previous = manifest.children.findLast((child) => child.pid === manifest.apiPid);
   if (!previous) throw new Error("API process not recorded");
   const current = await identity(previous.pid);
-  if (!current) return;
-  if (!(await matches(previous))) throw new Error("API process ownership mismatch");
-  process.kill(previous.pid, "SIGTERM");
-  const deadline = Date.now() + 10000;
-  while (await matches(previous)) {
-    if (Date.now() >= deadline) throw new Error("API did not stop for restart");
-    await delay(100);
+  if (current) {
+    if (!(await matches(previous))) throw new Error("API process ownership mismatch");
+    process.kill(previous.pid, "SIGTERM");
+    const deadline = Date.now() + 10000;
+    while (await matches(previous)) {
+      if (Date.now() >= deadline) throw new Error("API did not stop for restart");
+      await delay(100);
+    }
   }
+  delete manifest.apiPid;
+  await save(manifest);
 }
 export async function restartSimulator(manifest: Manifest, env: NodeJS.ProcessEnv) {
-  const previous = manifest.children.find((child) => child.pid === manifest.simulatorPid);
-  if (!previous || !(await matches(previous)))
-    throw new Error("Simulator process ownership mismatch");
-  process.kill(previous.pid, "SIGTERM");
-  const deadline = Date.now() + 10000;
-  while (await matches(previous)) {
-    if (Date.now() >= deadline) throw new Error("Simulator did not stop for restart");
-    await delay(100);
+  await stopSimulator(manifest);
+  await launchSimulator(manifest, env);
+}
+export async function stopSimulator(manifest: Manifest) {
+  if (!manifest.simulatorPid) return;
+  const previous = manifest.children.findLast((child) => child.pid === manifest.simulatorPid);
+  if (!previous) throw new Error("Simulator process not recorded");
+  if (await identity(previous.pid)) {
+    if (!(await matches(previous))) throw new Error("Simulator process ownership mismatch");
+    process.kill(previous.pid, "SIGTERM");
+    const deadline = Date.now() + 10000;
+    while (await matches(previous)) {
+      if (Date.now() >= deadline) throw new Error("Simulator did not stop for restart");
+      await delay(100);
+    }
   }
+  delete manifest.simulatorPid;
+  await save(manifest);
+}
+export async function launchSimulator(manifest: Manifest, env: NodeJS.ProcessEnv) {
   const child = await launch(
     manifest,
     ["--import", "tsx", "apps/simulator/src/api.ts"],
@@ -523,7 +538,12 @@ export async function waitForRefundWorker(manifest: Manifest, env: NodeJS.Proces
   }
 }
 export async function restartRefundWorker(manifest: Manifest, env: NodeJS.ProcessEnv) {
-  const previous = manifest.children.find((child) => child.pid === manifest.workerPid);
+  await stopRefundWorker(manifest);
+  await launchRefundWorker(manifest, env);
+}
+export async function stopRefundWorker(manifest: Manifest) {
+  if (!manifest.workerPid) return;
+  const previous = manifest.children.findLast((child) => child.pid === manifest.workerPid);
   if (!previous) throw new Error("Refund worker is not recorded");
   const current = await identity(previous.pid);
   if (current) {
@@ -536,6 +556,10 @@ export async function restartRefundWorker(manifest: Manifest, env: NodeJS.Proces
       await delay(100);
     }
   }
+  delete manifest.workerPid;
+  await save(manifest);
+}
+export async function launchRefundWorker(manifest: Manifest, env: NodeJS.ProcessEnv) {
   const worker = await launch(
     manifest,
     ["--import", "tsx", "apps/server/src/worker.ts"],
@@ -548,7 +572,7 @@ export async function restartRefundWorker(manifest: Manifest, env: NodeJS.Proces
 export async function crashRefundWorker(manifest: Manifest) {
   if (manifest.mode === "dev" || !manifest.id.startsWith("codex-returns-test-"))
     throw new Error("Crash fixture requires a disposable test run");
-  const worker = manifest.children.find((child) => child.pid === manifest.workerPid);
+  const worker = manifest.children.findLast((child) => child.pid === manifest.workerPid);
   if (!worker || !(await matches(worker))) throw new Error("Refund worker ownership mismatch");
   process.kill(worker.pid, "SIGKILL");
   const deadline = Date.now() + 5000;
