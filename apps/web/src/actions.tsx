@@ -7,6 +7,7 @@ import {
   returnDetailContract,
 } from "../../../packages/contracts/src/index.ts";
 import { api } from "./api.ts";
+import { focusConfirmation, focusDetailHeading } from "./focus.ts";
 
 export function ReturnActions({ actor, request }: { actor: Actor; request: ReturnView }) {
   const client = useQueryClient();
@@ -32,6 +33,7 @@ export function ReturnActions({ actor, request }: { actor: Actor; request: Retur
         client.invalidateQueries({ queryKey: ["returns"] }),
         client.invalidateQueries({ queryKey: ["orders"] }),
       ]);
+      focusDetailHeading();
     },
   });
   if (!available.length) return null;
@@ -68,13 +70,21 @@ export function ReturnActions({ actor, request }: { actor: Actor; request: Retur
           <div className="action-buttons">
             <button
               className="primary"
+              ref={focusConfirmation}
               type="button"
               disabled={decision.isPending}
               onClick={() => decision.mutate()}
             >
               {decision.isPending ? "Saving decision…" : `Confirm ${selected.label.toLowerCase()}`}
             </button>
-            <button type="button" disabled={decision.isPending} onClick={() => setAction(null)}>
+            <button
+              type="button"
+              disabled={decision.isPending}
+              onClick={() => {
+                setAction(null);
+                focusDetailHeading();
+              }}
+            >
               Cancel
             </button>
           </div>

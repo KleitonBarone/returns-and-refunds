@@ -824,6 +824,72 @@ closed, and development shutdown verified teardown. Disposable test resources
 were removed; only the two project demo volumes remain. Remote PR/merge evidence
 follows in the next delivery update.
 
+[GitHub PR #8](https://github.com/KleitonBarone/returns-and-refunds/pull/8) adds
+the recovery interface and captured evidence in commit `feae866`, following
+`43554c2`, `93127e0`, and `41c0c89`. Its check passed on `feae866` with no open
+review findings. PR #8 merged as `8dae22a` on October 21, 2026.
+
+### Implementation delivery 7. Interface and browser journeys
+
+Branch `feat/operations-interface` adds queue search/status filters, short return
+identifiers, narrow-screen selection/back navigation, next-action guidance,
+consistent time and financial-state labels, confirmation focus, and recoverable
+service errors. The persona selector preserves keyboard focus during its session
+update, after browser testing exposed focus loss from native disabling.
+
+The browser runner pins Playwright and Chromium, builds the app, and owns fresh
+app/provider PostgreSQL instances, API, worker, simulator, web server, and browser
+on disposable loopback ports. It checks actual run identity before testing and
+records process identity for cleanup after supervisor death. Browser profiles and
+crash data use owned temporary storage. Latest success/failure diagnostics
+replace previous artifacts with a 32 MiB/100-file cap. Traces/video are disabled
+to avoid recording session credentials; assertion reports, screenshots, accessible
+page state, and bounded console errors provide failure evidence. CI installs the
+matching browser and runs the same journeys and cleanup verification.
+
+Commit `1bb4dc7` refines the interface and records manual desktop/narrow review.
+Two fresh browser runs passed both journeys in 19.7 and 20.1 seconds, excluding
+environment setup/teardown. They cover keyboard completion through all four
+roles, real in-flight request controls, a $35 partial refund whose response is
+lost, actual service restarts, original-key recovery, three late signed event
+copies, customer history and remaining units, expiry, narrow navigation, empty
+filters, a real API outage/retry, and second-merchant isolation.
+
+Failure verification requires fresh assertion/page/console/screenshot diagnostics
+from the injected failure, checks the retention cap and credential exclusion,
+and verifies that failed run's teardown. Abrupt supervisor termination while
+Chromium was open also passed abandoned-run cleanup, including the browser,
+services, ports, databases, and profiles. The retained expected-failure evidence
+uses about 62 KB. Test/browser controls use only owned disposable environments.
+Manual inspection used the same isolated runner, closed its task tab, reset the
+viewport override, and resumed tests before verified cleanup.
+
+Type/format/lint checks, four unit checks, 59 PostgreSQL/HTTP integration checks,
+and the production web build pass. Actual financial diagnostics and screenshots
+are linked in `docs/evidence/browser-verification.md`. The full service lifecycle
+suite also passed repeated startup, persisted app/provider progress, actual
+worker-crash recovery, service restarts, failed startup, abrupt interruption,
+abandoned-run cleanup, and preservation of unrelated Docker resources. All run
+directories and disposable resources were removed. The two earlier development
+volumes remain preserved, and the dedicated matching Chromium cache is retained
+for reuse at about 441 MiB.
+
+[GitHub PR #9](https://github.com/KleitonBarone/returns-and-refunds/pull/9) contains
+`1bb4dc7` and `fa2f1cc`. Its first CI run passed the earlier checks but Chromium
+aborted before browser journeys because its Unix socket path under the long
+checkout directory exceeded the OS limit. A Linux reproduction with the pinned
+Node/browser versions confirmed the exact failure. Unix browser data now uses
+a short, private `/tmp/rr-<hash>` directory derived from run/workspace identity.
+Configuration and cache paths stay inside it. Cleanup checks its owner marker
+and canonical path, refuses mismatched ownership, and removes it after stopping
+the owned browser. Failure and supervisor-death checks assert that storage is
+gone. Windows keeps its owned storage under the run directory. Both browser
+journeys passed in two fresh Linux runs, and Linux failure, ownership-refusal,
+and interruption verification passed. Windows storage/interruption checks also
+passed. Temporary Linux tools, dependencies, browser cache, and source checkout
+were removed after verified teardown. Type/lint/format checks pass. Updated CI
+and merge evidence follow after the fix push.
+
 ## Final acceptance
 
 - [ ] All planned capabilities exist on remote main and all delivery PRs are

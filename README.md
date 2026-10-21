@@ -101,6 +101,9 @@ pnpm test
 pnpm build
 pnpm test:integration
 pnpm test:environment
+pnpm browser:install
+pnpm test:e2e
+pnpm test:e2e:environment
 ```
 
 Integration runs create separate app/simulator PostgreSQL instances and fixtures,
@@ -112,6 +115,42 @@ real HTTP/worker readiness, injected startup failure, abrupt
 termination, and abandoned-run recovery. All disposable containers, networks,
 volumes, and child processes must be gone afterward. Each PostgreSQL service is
 limited to 512 MiB, one CPU, and 30 connections; application pools use four.
+
+`browser:install` downloads the Chromium revision pinned by Playwright into this
+checkout's ignored `.local/browsers`. Linux CI uses `--with-deps` to install its
+system libraries. The installer removes obsolete revisions in this dedicated
+cache. It does not change the user's browser or global browser cache.
+
+`test:e2e` builds the web app and starts fresh app/provider databases, the actual
+API, worker, simulator, and web server on assigned loopback ports. It verifies run
+identity and never reuses a running development server. Keyboard journeys cover a
+partial return, a lost payment response, full service restarts, original-operation
+recovery, duplicate delayed events, expired eligibility, narrow navigation, and
+an API outage. The independent provider ledger must contain one $35 refund.
+Run lifecycle suites sequentially, since they verify preservation of existing
+Docker networks.
+
+Use `pnpm test:e2e --inspect` to pause that same disposable stack for manual
+inspection. Press Enter, or create the printed `resume-request` file, to run the
+journeys and tear it down. Stop with Ctrl+C if inspection should end early.
+`test:e2e:environment` deliberately fails an assertion to verify failure evidence,
+then kills only its own supervisor while Chromium is open and verifies abandoned
+run cleanup. Its deliberate failed assertion is expected; the command exits
+successfully only when both recovery checks pass.
+
+Each browser run replaces either `.local/e2e-last-success` or
+`.local/e2e-last-failure`, capped at 100 diagnostic files and 32 MiB, plus a small
+retention summary. Failures include the assertion report, screenshot, accessible
+page state, and bounded console errors. Traces and video are disabled because
+they can record session credentials. Browser profiles and crash files live below
+the run directory on Windows. Unix runs use a private, short `/tmp/rr-<hash>`
+directory so Chromium's socket path stays within the OS limit. Cleanup verifies
+its run/workspace owner marker before removing it, including after interruption.
+Both paths are removed along with the verified browser processes and services.
+CI keeps failure artifacts for seven days. The browser cache is intentionally
+reused between runs; it can be removed when this checkout no longer needs tests.
+Actual results and captured views are in
+[browser verification](docs/evidence/browser-verification.md).
 
 Inspect an abandoned run with `pnpm env:clean <run-id>`, then add `--apply` to
 remove its verified resources. `pnpm env:clean --all --apply` handles recorded

@@ -12,6 +12,7 @@ import { workerHeartbeat } from "../apps/server/src/schema.ts";
 import { prepareSimulatorDatabase } from "../apps/simulator/src/database.ts";
 import { healthResponse } from "../packages/contracts/src/index.ts";
 import { simulatorHealth } from "../packages/contracts/src/payment.ts";
+import { browserProcessRecord } from "./browser-contracts.ts";
 import { prepareDatabase } from "./database.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -117,6 +118,67 @@ async function matches(expected: typeof processIdentity.infer) {
   const current = await identity(expected.pid);
   return current?.birth === expected.birth && current.commandHash === expected.commandHash;
 }
+// Unix socket names must stay short even when the checkout path is long.
+export async function browserTempPath(manifest: Manifest) {
+  return windows
+    ? join(runPath(manifest.id), "browser-temp")
+    : join(
+        await realpath("/tmp"),
+        `rr-${createHash("sha256").update(`${manifest.workspace}:${manifest.id}`).digest("hex").slice(0, 16)}`,
+      );
+}
+export async function prepareBrowserTemp(manifest: Manifest) {
+  if (manifest.mode !== "e2e") throw new Error("Browser temporary storage requires an e2e run");
+  const directory = await browserTempPath(manifest);
+  if (!windows && Buffer.byteLength(directory) > 40)
+    throw new Error("Browser temporary path is too long for Unix sockets");
+  await mkdir(directory, { mode: 0o700 });
+  await writeFile(
+    join(directory, "owner.json"),
+    JSON.stringify({ runId: manifest.id, workspace: manifest.workspace }),
+    { flag: "wx", mode: 0o600 },
+  );
+  return directory;
+}
+async function verifyBrowserTemp(manifest: Manifest, directory: string) {
+  if ((await realpath(directory)) !== resolve(directory))
+    throw new Error("Browser temporary storage is redirected");
+  const owner = type({ runId: "string", workspace: "string" }).assert(
+    JSON.parse(await readFile(join(directory, "owner.json"), "utf8")),
+  );
+  if (owner.runId !== manifest.id || owner.workspace !== manifest.workspace)
+    throw new Error("Browser temporary storage ownership mismatch");
+}
+async function ownedBrowserProcesses(directory: string, scratch: string) {
+  const markers = [resolve(directory), scratch];
+  if (relative(join(root, ".local", "runs"), resolve(directory)).startsWith(".."))
+    throw new Error("Browser marker leaves run storage");
+  const pids = windows
+    ? command("powershell.exe", [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `Get-CimInstance Win32_Process | Where-Object { $_.Name -in @('chrome.exe', 'chrome_crashpad_handler.exe') -and $_.CommandLine -and (${markers.map((marker) => `$_.CommandLine.IndexOf('${marker.replaceAll("'", "''")}', [StringComparison]::OrdinalIgnoreCase) -ge 0`).join(" -or ")}) } | Select-Object -ExpandProperty ProcessId`,
+      ])
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(Number)
+    : (await readdir("/proc")).filter((name) => /^\d+$/.test(name)).map(Number);
+  const owned: Array<typeof processIdentity.infer> = [];
+  for (const pid of pids) {
+    if (!windows) {
+      try {
+        const commandLine = await readFile(`/proc/${pid}/cmdline`, "utf8");
+        if (!markers.some((marker) => commandLine.includes(marker))) continue;
+      } catch {
+        continue;
+      }
+    }
+    const record = await identity(pid);
+    if (record) owned.push(record);
+  }
+  return owned;
+}
 function runPath(id: string) {
   if (!/^(codex-returns-test-[a-z0-9-]+|returns-dev-[a-f0-9]+)$/.test(id))
     throw new Error("Invalid run identity");
@@ -175,7 +237,7 @@ async function safeRemove(directory: string) {
     throw new Error("Run storage leaves the workspace");
   const within = relative(allowed, absolute);
   if (!within || within.startsWith("..") || isAbsolute(within))
-    throw new Error("Refusing removal outside a run directory");
+    throw new Error("Refusing removal outside project-local storage");
   await rm(absolute, { recursive: true, force: false });
 }
 function ownedResources(manifest: Manifest, kind: "ps" | "volume" | "network") {
@@ -250,6 +312,27 @@ async function cleanup(manifest: Manifest, active = false) {
   }
   for (const child of [...manifest.children].reverse()) {
     if (child.pid !== manifest.keepalivePid) await stopChild(child);
+  }
+  const browserRecordPath = join(runPath(manifest.id), "browser-process.json");
+  if (manifest.mode === "e2e") {
+    const scratch = await browserTempPath(manifest);
+    if (existsSync(scratch)) await verifyBrowserTemp(manifest, scratch);
+    if (existsSync(browserRecordPath)) {
+      const browser = browserProcessRecord.assert(
+        JSON.parse(await readFile(browserRecordPath, "utf8")),
+      );
+      if (browser.runId !== manifest.id) throw new Error("Browser ownership mismatch");
+      await stopChild(browser.process);
+    }
+    const remaining = await ownedBrowserProcesses(runPath(manifest.id), scratch);
+    for (const processRecord of remaining.reverse()) await stopChild(processRecord);
+    if ((await ownedBrowserProcesses(runPath(manifest.id), scratch)).length)
+      throw new Error("Run-owned browser processes remain");
+    if (existsSync(scratch)) {
+      await verifyBrowserTemp(manifest, scratch);
+      if (windows) await safeRemove(scratch);
+      else await rm(scratch, { recursive: true, force: false });
+    }
   }
   const containers = ownedResources(manifest, "ps");
   for (const container of containers) {
@@ -379,15 +462,21 @@ export async function launchApi(manifest: Manifest, env: NodeJS.ProcessEnv) {
   return child;
 }
 export async function restartApi(manifest: Manifest, env: NodeJS.ProcessEnv) {
+  await stopApi(manifest);
+  await launchApi(manifest, env);
+}
+export async function stopApi(manifest: Manifest) {
   const previous = manifest.children.find((child) => child.pid === manifest.apiPid);
-  if (!previous || !(await matches(previous))) throw new Error("API process ownership mismatch");
+  if (!previous) throw new Error("API process not recorded");
+  const current = await identity(previous.pid);
+  if (!current) return;
+  if (!(await matches(previous))) throw new Error("API process ownership mismatch");
   process.kill(previous.pid, "SIGTERM");
   const deadline = Date.now() + 10000;
   while (await matches(previous)) {
     if (Date.now() >= deadline) throw new Error("API did not stop for restart");
     await delay(100);
   }
-  await launchApi(manifest, env);
 }
 export async function restartSimulator(manifest: Manifest, env: NodeJS.ProcessEnv) {
   const previous = manifest.children.find((child) => child.pid === manifest.simulatorPid);
@@ -833,5 +922,6 @@ export {
   preflight,
   root,
   runPath,
+  safeRemove,
   waitFor,
 };

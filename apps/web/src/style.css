@@ -210,7 +210,7 @@ select {
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 11px;
-  text-transform: capitalize;
+  text-transform: none;
   font-weight: 550;
   background: #e9eff4;
   color: #415e76;
@@ -586,4 +586,53 @@ textarea {
   color: white;
   font-size: 25px;
   font-weight: 700;
+}
+.workspace-grid > *,
+.item-description {
+  min-width: 0;
+}
+.queue-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.queue-controls .field {
+  margin: 0;
+}
+.queue-controls input {
+  width: 100%;
+  border: 1px solid #ced9e0;
+  border-radius: 6px;
+  padding: 9px 10px;
+}
+.back-to-queue {
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+.demo-disclosure {
+  font-size: 12px;
+  color: #647887;
+  max-width: 150px;
+}
+.history-state {
+  display: block;
+  font-size: 12px;
+  color: #415e76;
+  margin-top: 5px;
+}
+.selected-pane h2 {
+  scroll-margin-top: 24px;
+}
+.error button {
+  display: block;
+  margin-top: 10px;
+}
+@media (max-width: 760px) {
+  .workspace-grid.has-selection .queue-pane {
+    display: none;
+  }
+  .demo-disclosure {
+    max-width: none;
+  }
 }
