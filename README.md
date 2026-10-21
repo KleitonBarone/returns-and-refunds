@@ -15,6 +15,11 @@ Refund processing follows in the remaining
 [delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
 from the next incomplete delivery PR.
 
+The [persistent payment simulator](docs/payment-simulator.md) is available as a
+separate HTTP service and database. It supports idempotent refunds, an independent
+ledger, failure controls, and durable signed events. The application refund worker
+and event consumer are the next deliveries.
+
 Open Maya's orders to request a return, then choose Ava to see it in support's
 queue. Approve it with a reason, then choose Jules to record receipt and inspection.
 A passing inspection makes the return ready for finance review. Maya's older
@@ -60,8 +65,9 @@ pnpm dev
 The runner waits for PostgreSQL, applies migrations, and creates missing demo
 fixtures. It never resets existing progress on startup. Open
 `http://127.0.0.1:4320`; API readiness is at `http://127.0.0.1:4321/api/health`.
-The database uses port 55432. Copy `.env.example` to `.env` to override local
-ports or the explicitly fictional clock. The runner generates local database
+The app database uses 55432; the simulator uses HTTP 4322 and its database 55433.
+Copy `.env.example` to `.env` to override local ports or the explicitly fictional
+clock. The runner generates local database
 credentials and ignores an inherited `DATABASE_URL` when creating its environment.
 The runner holds a tracked WSL session while services run, so Ubuntu's idle
 shutdown cannot silently stop PostgreSQL. Teardown releases that session last;
@@ -69,7 +75,12 @@ it does not change WSL configuration.
 
 Stop with Ctrl+C or run `pnpm dev:down` in another terminal. Normal shutdown
 removes project processes, containers, and networks while preserving its named
-demo volume. No services need to remain running between development sessions.
+demo volumes. No services need to remain running between development sessions.
+
+While development is running, `pnpm simulator:inspect` shows the synthetic ledger.
+Use `pnpm simulator:control payment-order-1042 drop_response` to lose the next new
+refund's response, or replace `drop_response` with `success` to restore normal
+responses. These commands verify the active checkout and hide local credentials.
 
 ## Verify and clean up
 
@@ -81,12 +92,13 @@ pnpm test:integration
 pnpm test:environment
 ```
 
-Integration runs create their own PostgreSQL instance and fixtures. Environment
-verification exercises two fresh startups, persisted changes across migration/seed
-reruns, real HTTP readiness, injected startup failure, abrupt termination, and
-abandoned-run recovery. All disposable containers, networks, volumes, and child
-processes must be gone afterward. PostgreSQL is limited to 512 MiB, one CPU, and
-30 connections; application pools use four connections.
+Integration runs create separate app/simulator PostgreSQL instances and fixtures,
+and start the real simulator HTTP service. Environment verification exercises two
+fresh startups, persisted changes across migration/seed reruns, simulator process
+restart persistence, real HTTP readiness, injected startup failure, abrupt
+termination, and abandoned-run recovery. All disposable containers, networks,
+volumes, and child processes must be gone afterward. Each PostgreSQL service is
+limited to 512 MiB, one CPU, and 30 connections; application pools use four.
 
 Inspect an abandoned run with `pnpm env:clean <run-id>`, then add `--apply` to
 remove its verified resources. `pnpm env:clean --all --apply` handles recorded

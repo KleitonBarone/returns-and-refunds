@@ -7,14 +7,18 @@ import { setTimeout as delay } from "node:timers/promises";
 import { eq } from "drizzle-orm";
 import { connectDatabase } from "../apps/server/src/db.ts";
 import { orders } from "../apps/server/src/schema.ts";
+import { prepareSimulatorDatabase } from "../apps/simulator/src/database.ts";
 import { healthResponse } from "../packages/contracts/src/index.ts";
+import { providerReceipt, simulatorDiagnostics } from "../packages/contracts/src/payment.ts";
 import { prepareDatabase } from "./database.ts";
 import {
+  applicationEnvironment,
   cleanup,
   docker,
   identity,
   launch,
   manifestType,
+  restartSimulator,
   root,
   runEnvironment,
   runPath,
@@ -49,7 +53,60 @@ try {
           "PERSISTED-CHANGE",
           "migration/seed reruns must preserve demo progress",
         );
-        await launch(manifest, ["--import", "tsx", "apps/server/src/api.ts"], env);
+        const input = {
+          paymentRef: "payment-order-1042",
+          idempotencyKey: randomUUID(),
+          amountMinor: 3500,
+          currency: "USD",
+        };
+        const headers = {
+          authorization: `Bearer ${env.SIMULATOR_API_TOKEN}`,
+          "content-type": "application/json",
+        };
+        const refundPath = `${env.SIMULATOR_URL}/v1/merchants/northline/refunds`;
+        const receipt = providerReceipt.assert(
+          await (
+            await fetch(refundPath, {
+              method: "POST",
+              headers,
+              body: JSON.stringify(input),
+              signal: AbortSignal.timeout(5000),
+            })
+          ).json(),
+        );
+        await prepareSimulatorDatabase(String(env.SIMULATOR_DATABASE_URL), manifest.id, true);
+        await restartSimulator(manifest, env);
+        const persisted = providerReceipt.assert(
+          await (
+            await fetch(`${refundPath}/${input.idempotencyKey}`, {
+              headers,
+              signal: AbortSignal.timeout(5000),
+            })
+          ).json(),
+        );
+        assert.deepEqual(
+          persisted,
+          receipt,
+          "actual simulator restart must preserve the key and outcome",
+        );
+        const diagnostics = simulatorDiagnostics.assert(
+          await (
+            await fetch(`${env.SIMULATOR_URL}/control/diagnostics`, {
+              headers: { authorization: `Bearer ${env.SIMULATOR_ADMIN_TOKEN}` },
+              signal: AbortSignal.timeout(5000),
+            })
+          ).json(),
+        );
+        assert.equal(diagnostics.ledger.filter((entry) => entry.refundId === receipt.id).length, 1);
+        assert.equal(
+          diagnostics.deliveries.filter((entry) => entry.refundId === receipt.id).length,
+          2,
+        );
+        await launch(
+          manifest,
+          ["--import", "tsx", "apps/server/src/api.ts"],
+          applicationEnvironment(env),
+        );
         await waitFor(
           `http://127.0.0.1:${manifest.apiPort}/api/health`,
           (body) => healthResponse.allows(body) && body.runId === manifest.id,
@@ -104,7 +161,7 @@ try {
   }
   for (const network of baselineNetworks) assert.ok(docker(["network", "inspect", network]));
   console.log(
-    "Verified repeatable startup, persisted data, failed startup, abrupt interruption, abandoned-run recovery, and preserved unrelated resources.",
+    "Verified repeatable startup, persisted app/provider data, actual simulator restart, failed startup, abrupt interruption, abandoned-run recovery, and preserved unrelated resources.",
   );
 } finally {
   delete process.env.RETURNS_INJECT_STARTUP_FAILURE;

@@ -19,7 +19,9 @@
     "env:clean": "tsx scripts/environment.ts clean",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "tsx scripts/database.ts migrate",
-    "db:seed": "tsx scripts/database.ts seed"
+    "db:seed": "tsx scripts/database.ts seed",
+    "simulator:inspect": "tsx scripts/simulator-control.ts inspect",
+    "simulator:control": "tsx scripts/simulator-control.ts control"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.3",
