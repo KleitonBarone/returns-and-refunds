@@ -2,27 +2,32 @@
 
 A local operations console for reviewing return requests, recording warehouse
 inspection, and issuing refunds. The customer can follow the request while the
-merchant can explain each decision and recover a failed refund.
+merchant can explain each decision and track an uncertain refund.
 
 The default environment uses fictional orders and a local payment simulator.
 No merchant account, real customer, card, or movement of money is required.
 
-**Status: requests, decisions, and inspections implemented.** Choose a demo
+**Status: requests, decisions, inspection, and refund submission implemented.** Choose a demo
 persona, request part of an eligible order, and follow approval, receipt, and
 inspection in the merchant queue. Each transition records its actor and reason.
 Rejected requests and failed inspections release their reserved units atomically.
-Refund processing follows in the remaining
+Finance confirms the amount; a durable worker processes the original operation.
+Unknown outcomes keep their amount and items reserved. Recovery and signed event
+consumption follow in the remaining
 [delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
 from the next incomplete delivery PR.
 
 The [persistent payment simulator](docs/payment-simulator.md) is available as a
 separate HTTP service and database. It supports idempotent refunds, an independent
-ledger, failure controls, and durable signed events. The application refund worker
-and event consumer are the next deliveries.
+ledger, failure controls, and durable signed events. The
+[refund worker](docs/refund-processing.md) handles leases, pre-write retries,
+crashes, and atomic success. The event consumer is the next delivery.
 
 Open Maya's orders to request a return, then choose Ava to see it in support's
 queue. Approve it with a reason, then choose Jules to record receipt and inspection.
-A passing inspection makes the return ready for finance review. Maya's older
+A passing inspection makes the return ready for Sam's finance review and amount
+confirmation. Confirmed success closes it and permanently consumes the refunded
+units. Maya's older
 order shows the expired window. Robin's queue belongs to
 the separate Other Store merchant. Persona switching is a local demo feature,
 not production authentication.
@@ -63,7 +68,8 @@ pnpm dev
 ```
 
 The runner waits for PostgreSQL, applies migrations, and creates missing demo
-fixtures. It never resets existing progress on startup. Open
+fixtures, and verifies the refund worker's identity and heartbeat. It never resets
+existing progress on startup. Open
 `http://127.0.0.1:4320`; API readiness is at `http://127.0.0.1:4321/api/health`.
 The app database uses 55432; the simulator uses HTTP 4322 and its database 55433.
 Copy `.env.example` to `.env` to override local ports or the explicitly fictional
@@ -95,7 +101,8 @@ pnpm test:environment
 Integration runs create separate app/simulator PostgreSQL instances and fixtures,
 and start the real simulator HTTP service. Environment verification exercises two
 fresh startups, persisted changes across migration/seed reruns, simulator process
-restart persistence, real HTTP readiness, injected startup failure, abrupt
+restart persistence, a real worker crash after provider success and subsequent
+same-operation recovery, real HTTP/worker readiness, injected startup failure, abrupt
 termination, and abandoned-run recovery. All disposable containers, networks,
 volumes, and child processes must be gone afterward. Each PostgreSQL service is
 limited to 512 MiB, one CPU, and 30 connections; application pools use four.

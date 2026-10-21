@@ -2,12 +2,18 @@ import cookie from "@fastify/cookie";
 import { type } from "arktype";
 import { eq } from "drizzle-orm";
 import Fastify from "fastify";
-import { actionInput, requestInput, sessionInput } from "../../../packages/contracts/src/index.ts";
+import {
+  actionInput,
+  refundInput,
+  requestInput,
+  sessionInput,
+} from "../../../packages/contracts/src/index.ts";
 import { createSession, listPersonas, requireActor, sessionActor } from "./actors.ts";
 import type { readConfig } from "./config.ts";
 import type { Database } from "./db.ts";
 import { decideReturn } from "./decisions.ts";
 import { HttpError } from "./domain.ts";
+import { requestRefund } from "./refunds.ts";
 import { listOrders, listReturns, requestReturn, returnDetail } from "./returns.ts";
 import { environmentIdentity } from "./schema.ts";
 
@@ -68,6 +74,13 @@ export async function createApp(db: Database, config: ReturnType<typeof readConf
     const input = actionInput(request.body);
     if (input instanceof type.errors) throw new HttpError(400, input.summary);
     return decideReturn(db, actor, request.params.id, input, config.demoNow);
+  });
+  app.post<{ Params: { id: string } }>("/api/returns/:id/refund", async (request, reply) => {
+    const actor = requireActor(await sessionActor(db, request), "finance");
+    const input = refundInput(request.body);
+    if (input instanceof type.errors) throw new HttpError(400, input.summary);
+    await requestRefund(db, actor, request.params.id, input, config.demoNow);
+    return reply.code(202).send(await returnDetail(db, actor, request.params.id));
   });
   app.get("/api/health", async () => {
     const [identity] = await db

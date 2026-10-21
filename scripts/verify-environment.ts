@@ -24,8 +24,10 @@ import {
   runPath,
   waitFor,
 } from "./environment.ts";
+import { verifyRefundRestart } from "./verify-refund-restart.ts";
 
 const sentinel = `returns-fixture-${randomUUID()}`;
+const previousProviderTimeout = process.env.PROVIDER_TIMEOUT_MS;
 async function recoverRecordedRun(recorded: typeof manifestType.infer) {
   try {
     await stat(runPath(recorded.id));
@@ -38,6 +40,7 @@ async function recoverRecordedRun(recorded: typeof manifestType.infer) {
 const baselineNetworks = docker(["network", "ls", "-q"]).split(/\s+/).filter(Boolean);
 docker(["volume", "create", "--label", "io.returns.verification=sentinel", sentinel]);
 try {
+  process.env.PROVIDER_TIMEOUT_MS = "5000";
   for (let attempt = 0; attempt < 2; attempt++) {
     await runEnvironment("verify", async (env, manifest) => {
       const { db, pool } = connectDatabase(String(env.DATABASE_URL));
@@ -111,6 +114,7 @@ try {
           `http://127.0.0.1:${manifest.apiPort}/api/health`,
           (body) => healthResponse.allows(body) && body.runId === manifest.id,
         );
+        await verifyRefundRestart(db, env, manifest);
       } finally {
         await pool.end();
       }
@@ -161,9 +165,11 @@ try {
   }
   for (const network of baselineNetworks) assert.ok(docker(["network", "inspect", network]));
   console.log(
-    "Verified repeatable startup, persisted app/provider data, actual simulator restart, failed startup, abrupt interruption, abandoned-run recovery, and preserved unrelated resources.",
+    "Verified repeatable startup, persisted app/provider data, actual simulator/worker restarts, failed startup, abrupt interruption, abandoned-run recovery, and preserved unrelated resources.",
   );
 } finally {
+  if (previousProviderTimeout === undefined) delete process.env.PROVIDER_TIMEOUT_MS;
+  else process.env.PROVIDER_TIMEOUT_MS = previousProviderTimeout;
   delete process.env.RETURNS_INJECT_STARTUP_FAILURE;
   docker(["volume", "rm", sentinel]);
 }

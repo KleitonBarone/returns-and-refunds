@@ -7,6 +7,8 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { type } from "arktype";
+import { connectDatabase } from "../apps/server/src/db.ts";
+import { workerHeartbeat } from "../apps/server/src/schema.ts";
 import { prepareSimulatorDatabase } from "../apps/simulator/src/database.ts";
 import { healthResponse } from "../packages/contracts/src/index.ts";
 import { simulatorHealth } from "../packages/contracts/src/payment.ts";
@@ -32,6 +34,7 @@ const manifestType = type({
   "simulatorPort?": "number",
   "simulatorDbPort?": "number",
   "simulatorPid?": "number.integer > 0",
+  "workerPid?": "number.integer > 0",
   state: "'starting' | 'running' | 'cleaning' | 'failed'",
   dockerEndpoint: "string",
   subnet: "string",
@@ -91,9 +94,12 @@ async function identity(pid: number) {
       readFile(`/proc/${pid}/stat`, "utf8"),
       readFile(`/proc/${pid}/cmdline`, "utf8"),
     ]);
+    const fields = info.slice(info.lastIndexOf(")") + 2).split(" ");
+    // Exited processes can retain their PID with an empty command line until reaped.
+    if (fields[0] === "Z" || fields[0] === "X") return undefined;
     return {
       pid,
-      birth: info.slice(info.lastIndexOf(")") + 2).split(" ")[19] ?? "",
+      birth: fields[19] ?? "",
       commandHash: createHash("sha256").update(cmd).digest("hex"),
     };
   } catch (error) {
@@ -379,6 +385,63 @@ export async function restartSimulator(manifest: Manifest, env: NodeJS.ProcessEn
     (body) => simulatorHealth.allows(body) && body.runId === manifest.id,
   );
 }
+export async function waitForRefundWorker(manifest: Manifest, env: NodeJS.ProcessEnv) {
+  const { db, pool } = connectDatabase(String(env.DATABASE_URL));
+  const deadline = Date.now() + 30000;
+  try {
+    while (Date.now() < deadline) {
+      const records = await db.select().from(workerHeartbeat);
+      if (
+        records.some(
+          (record) =>
+            record.runId === manifest.id &&
+            record.pid === manifest.workerPid &&
+            Date.now() - Date.parse(record.lastSeenAt) < 10000,
+        )
+      )
+        return;
+      await delay(100);
+    }
+    throw new Error("Refund worker readiness timed out");
+  } finally {
+    await pool.end();
+  }
+}
+export async function restartRefundWorker(manifest: Manifest, env: NodeJS.ProcessEnv) {
+  const previous = manifest.children.find((child) => child.pid === manifest.workerPid);
+  if (!previous) throw new Error("Refund worker is not recorded");
+  const current = await identity(previous.pid);
+  if (current) {
+    if (current.birth !== previous.birth || current.commandHash !== previous.commandHash)
+      throw new Error("Refund worker ownership mismatch");
+    process.kill(previous.pid, "SIGTERM");
+    const deadline = Date.now() + 10000;
+    while (await matches(previous)) {
+      if (Date.now() >= deadline) throw new Error("Refund worker did not stop");
+      await delay(100);
+    }
+  }
+  const worker = await launch(
+    manifest,
+    ["--import", "tsx", "apps/server/src/worker.ts"],
+    applicationEnvironment(env),
+  );
+  manifest.workerPid = worker.pid;
+  await save(manifest);
+  await waitForRefundWorker(manifest, env);
+}
+export async function crashRefundWorker(manifest: Manifest) {
+  if (manifest.mode === "dev" || !manifest.id.startsWith("codex-returns-test-"))
+    throw new Error("Crash fixture requires a disposable test run");
+  const worker = manifest.children.find((child) => child.pid === manifest.workerPid);
+  if (!worker || !(await matches(worker))) throw new Error("Refund worker ownership mismatch");
+  process.kill(worker.pid, "SIGKILL");
+  const deadline = Date.now() + 5000;
+  while (await matches(worker)) {
+    if (Date.now() >= deadline) throw new Error("Crash fixture did not stop");
+    await delay(100);
+  }
+}
 async function preflight() {
   if (Number(process.versions.node.split(".")[0]) !== 24)
     throw new Error("Use Node 24.20.0 or newer in the 24.x line");
@@ -576,6 +639,19 @@ export async function runEnvironment(
       `${env.SIMULATOR_URL}/health`,
       (body) => simulatorHealth.allows(body) && body.runId === id,
     );
+    const worker =
+      mode !== "integration"
+        ? await launch(
+            manifest,
+            ["--import", "tsx", "apps/server/src/worker.ts"],
+            applicationEnvironment(env),
+          )
+        : undefined;
+    if (worker) {
+      manifest.workerPid = worker.pid;
+      await save(manifest);
+      await waitForRefundWorker(manifest, env);
+    }
     if (process.env.RETURNS_INJECT_STARTUP_FAILURE === "1")
       throw new Error("Injected startup failure");
     manifest.state = "running";
@@ -609,7 +685,13 @@ export async function runEnvironment(
       await Promise.race([
         stopped,
         new Promise<void>((_, reject) => {
-          for (const child of [api, web, simulator, ...(lease ? [lease] : [])])
+          for (const child of [
+            api,
+            web,
+            simulator,
+            ...(worker ? [worker] : []),
+            ...(lease ? [lease] : []),
+          ])
             child.once("exit", (code) => reject(new Error(`Service exited (${code})`)));
         }),
       ]);

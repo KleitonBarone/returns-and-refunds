@@ -605,7 +605,7 @@ commit `7b2fa99`, merged as `2992d18` after documentation checks.
 GitHub's merged PR record is authoritative; this file cannot contain its own
 future merge SHA.
 
-Deliveries 5-9 have not started. During each delivery PR, add its URL, branch, included
+Delivery 5 is in progress; deliveries 6-9 have not started. During each delivery PR, add its URL, branch, included
 commits, and actual checks here. Include
 prior merge metadata in the next log update. Do not create another PR merely to
 record this documentation PR's merge SHA.
@@ -715,7 +715,56 @@ failure, and abrupt supervisor termination. Unrelated fixtures/networks survived
 Development startup and the inspect/control commands also passed; the control
 was restored to success afterward. Shutdown retains only the two project demo
 volumes for subsequent development. The pinned PostgreSQL image is reused.
-Remote PR/merge evidence follows in the next delivery log update.
+[GitHub PR #6](https://github.com/KleitonBarone/returns-and-refunds/pull/6) includes
+commits `d851f6c`, `4a57397`, and `fc888ac`. CI passed on `fc888ac`; it merged as
+`dddeca0` on October 21, 2026.
+
+### Implementation delivery 5. Durable refund processing
+
+Branch `feat/refund-processing` adds finance authorization and exact amount
+confirmation, one immutable operation per return, transactional capacity checks,
+an outbox, persisted attempts, and leased worker ownership. Confirmed success
+atomically stores the provider receipt, acknowledges the job, records history,
+closes the return, and permanently consumes its units. Unknown and failed
+operations remain reserved without allowing replacement operations.
+
+Commit `42d6699` combines the proposed intent and worker commits with their
+contracts and integration checks because they share the new schema and financial
+transaction boundaries. Commit `5ccfd73` adds supervised worker readiness and
+actual crash/restart verification. The interface and documentation form the next
+commit. Processing details and current recovery limits are in
+`docs/refund-processing.md`.
+
+Local evidence on October 21, 2026: type/lint/format checks, four unit checks,
+42 real PostgreSQL/HTTP integration checks, and the production web build pass.
+New checks cover finance/merchant/inspection/amount guards, concurrent submission
+and capacity reservations, pre-write retry backoff, lost responses, terminal
+failure, mismatched receipts, reclaimed leases and stale completion fencing.
+Injected audit failures prove intent/outbox rollback and atomic success rollback.
+An explicit provider barrier proves no order transaction spans HTTP.
+
+Lifecycle verification passed two fresh environments with a real worker killed
+after the simulator's financial write and before application acknowledgement.
+A replacement reclaimed the original job, leaving one provider ledger entry,
+one success audit, and abandoned/succeeded attempts. Actual simulator restarts,
+failed startup, abrupt supervisor termination, abandoned-run cleanup, and
+preservation of unrelated fixture/network resources also passed.
+
+Browser verification migrated the retained demo data, confirmed the $35 refund
+as Sam, observed automatic success and closure, and opened the same receipt and
+history as Maya. The simulator diagnostics independently showed one $35 entry.
+The inspected screenshot is `docs/evidence/screenshots/refund-succeeded.jpg`.
+The task tab closed; development shutdown verified removal of services, worker,
+containers, and network. Only the two project demo volumes remain. Disposable
+test resources were removed. Remote PR/merge evidence follows in the next update.
+
+[GitHub PR #7](https://github.com/KleitonBarone/returns-and-refunds/pull/7) includes
+`42d6699`, `5ccfd73`, and `a379f89`. Its first CI run passed the application and
+integration checks but exposed a Linux lifecycle issue after the worker crash.
+The exited worker remained as a zombie PID with an empty command line, which
+restart mistook for a changed live process. A disposable Linux reproduction
+confirmed the cause. Process identity now recognizes zombie/dead states as
+exited while preserving start-time and command-hash checks for live processes.
 
 ## Final acceptance
 

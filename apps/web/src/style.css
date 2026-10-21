@@ -403,6 +403,43 @@ textarea {
   border-top: 1px solid #dbe5ed;
   margin-top: 25px;
 }
+.refund-panel {
+  border: 1px solid #c9d8e3;
+  background: #f2f6f9;
+  padding: 16px;
+  margin-top: 24px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.refund-panel .amount-line {
+  margin: 0 0 12px;
+  align-items: center;
+}
+.refund-panel h3 {
+  margin: 0;
+}
+.refund-panel small {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #647887;
+  font-size: 11px;
+}
+.refund-unknown {
+  background: #fff8e8;
+  border-color: #d9bd7d;
+}
+.status-refund-unknown {
+  color: #7a5b1f;
+  background: #f4e6c6;
+}
+.status-refund-failed {
+  color: #943d36;
+  background: #fbe9e6;
+}
+.status-refund-succeeded {
+  color: #28674a;
+  background: #e7f2eb;
+}
 .action-buttons {
   display: flex;
   gap: 10px;

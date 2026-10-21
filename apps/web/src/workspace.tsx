@@ -11,6 +11,7 @@ import {
 } from "../../../packages/contracts/src/index.ts";
 import { ReturnActions } from "./actions.tsx";
 import { api } from "./api.ts";
+import { RefundPanel } from "./refund.tsx";
 
 export function date(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -170,7 +171,7 @@ export function ReturnDetail({ request, actor }: { request: ReturnView; actor: A
           <dd>{money(request.amountMinor, request.currency)}</dd>
         </div>
       </dl>
-      {request.closureReason && (
+      {request.closureReason && request.closureReason !== "refunded" && (
         <div className="notice notice-warning">
           <strong>
             {request.closureReason === "rejected"
@@ -186,7 +187,7 @@ export function ReturnDetail({ request, actor }: { request: ReturnView; actor: A
           </p>
         </div>
       )}
-      {request.status === "inspection_passed" && (
+      {request.status === "inspection_passed" && !request.refund && (
         <div className="notice notice-info">
           Inspection passed. This return is ready for finance to review the refund.
         </div>
@@ -215,6 +216,7 @@ export function ReturnDetail({ request, actor }: { request: ReturnView; actor: A
         <span>{request.policyVersion}</span>
       </div>
       <ReturnActions key={`${request.id}-${request.status}`} actor={actor} request={request} />
+      <RefundPanel key={`refund-${request.id}`} actor={actor} request={request} />
       <h3>Decision history</h3>
       <ol className="timeline">
         {request.history.map((event) => (
@@ -243,11 +245,22 @@ export function Workspace({ actor }: { actor: Actor }) {
   const returns = useQuery({
     queryKey: ["returns", actor.id],
     queryFn: async () => returnsContract.assert(await api("/returns")),
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (item) => item.refundStatus === "pending" || item.refundStatus === "processing",
+      )
+        ? 1000
+        : false,
   });
   const detail = useQuery({
     queryKey: ["return", actor.id, returnId],
     queryFn: async () => returnDetailContract.assert(await api(`/returns/${returnId}`)),
     enabled: Boolean(returnId),
+    refetchInterval: (query) =>
+      query.state.data?.refund?.status === "pending" ||
+      query.state.data?.refund?.status === "processing"
+        ? 1000
+        : false,
   });
   const order = orders.data?.find((item) => item.id === orderId);
   return (
@@ -337,6 +350,11 @@ export function Workspace({ actor }: { actor: Actor }) {
               <div className="queue-value">
                 <strong>{money(item.amountMinor, item.currency)}</strong>
                 <span className={`status status-${item.status}`}>{stateLabel(item.status)}</span>
+                {item.refundStatus && (
+                  <span className={`status status-refund-${item.refundStatus}`}>
+                    Refund {item.refundStatus}
+                  </span>
+                )}
               </div>
             </button>
           ))}
