@@ -7,15 +7,18 @@ merchant can explain each decision and recover a failed refund.
 The default environment uses fictional orders and a local payment simulator.
 No merchant account, real customer, card, or movement of money is required.
 
-**Status: customer return requests implemented.** Choose a demo persona, select
-part of an eligible order, and follow the request in the merchant queue. Requests
-reserve purchased units and record their policy and decision history atomically.
-Inspections and refunds follow in the remaining
+**Status: requests, decisions, and inspections implemented.** Choose a demo
+persona, request part of an eligible order, and follow approval, receipt, and
+inspection in the merchant queue. Each transition records its actor and reason.
+Rejected requests and failed inspections release their reserved units atomically.
+Refund processing follows in the remaining
 [delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
 from the next incomplete delivery PR.
 
 Open Maya's orders to request a return, then choose Ava to see it in support's
-queue. Maya's older order shows the expired window. Robin's queue belongs to
+queue. Approve it with a reason, then choose Jules to record receipt and inspection.
+A passing inspection makes the return ready for finance review. Maya's older
+order shows the expired window. Robin's queue belongs to
 the separate Other Store merchant. Persona switching is a local demo feature,
 not production authentication.
 

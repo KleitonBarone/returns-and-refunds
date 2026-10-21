@@ -13,8 +13,8 @@ not assigned GitHub numbers. Record real PR numbers, commit hashes, check result
 and merge timestamps as work finishes, never invent them.
 
 Execution is now authorized through the complete remaining plan, including
-commits, pushes, draft PRs, checks, and actual merges. Implementation delivery 1
-is merged. Delivery 2 has local customer-request code and verification.
+commits, pushes, draft PRs, checks, and actual merges. Implementation deliveries 1
+and 2 are merged. Delivery 3 has local decision/inspection code and verification.
 
 Build a local portfolio application for Kleiton, a senior engineer in Brazil
 targeting international remote roles. Recruiters should recognize the commerce
@@ -605,7 +605,7 @@ commit `7b2fa99`, merged as `2992d18` after documentation checks.
 GitHub's merged PR record is authoritative; this file cannot contain its own
 future merge SHA.
 
-Deliveries 3-9 have not started. During each delivery PR, add its URL, branch, included
+Deliveries 4-9 have not started. During each delivery PR, add its URL, branch, included
 commits, and actual checks here. Include
 prior merge metadata in the next log update. Do not create another PR merely to
 record this documentation PR's merge SHA.
@@ -653,8 +653,36 @@ Ava's queue, confirmed Robin's separate merchant queue stayed empty, and checked
 the expired order's disabled form. Evidence is saved in
 `docs/evidence/screenshots/customer-request.jpg`. The preview processes,
 container, and network stopped with verified teardown. Its project-owned demo
-volume remains available; disposable test resources were removed. Remote PR and
-merge evidence follows in the next delivery log update.
+volume remains available; disposable test resources were removed.
+[GitHub PR #4](https://github.com/KleitonBarone/returns-and-refunds/pull/4) includes
+commits `c419026` and `3f22f7c`. CI passed on `3f22f7c`; it merged as `73c0669`
+on October 21, 2026.
+
+### Implementation delivery 3. Decisions and inspection
+
+Branch `feat/return-decisions` adds server-authorized support decisions, warehouse
+receipt and inspection, persisted review outcomes, closure reasons, confirmation
+forms, and ordered actor/reason history. All unit-affecting actions lock the order
+before the return. Failed inspection records both its verdict and closure in the
+same transaction. Audit sequence ordering keeps a fixed demo clock deterministic.
+
+Local evidence on October 21, 2026: type/lint/format checks, four unit checks,
+15 real PostgreSQL checks, and the production build pass. New checks cover the
+complete passing flow, rejection and released claims, failed inspection while a
+previously consumed unit stays unavailable, roles/merchant/state guards, two
+competing decisions waiting on the order lock, and rollback after an injected
+audit constraint failure. The rollback leaves state, reviews, history, and claims
+unchanged.
+
+The retained demo data migrated successfully. Browser verification carried the
+existing $35 request through support approval, warehouse receipt, and passing
+inspection, then verified finance readiness and the customer's ordered history.
+Evidence is in `docs/evidence/screenshots/inspection-passed.jpg`. A 390px DOM
+check showed the detail contained within the viewport; narrow screenshot capture
+timed out, so complete responsive visual review remains in delivery 7. The browser
+size was restored, its task tab closed, and preview teardown verified. Test
+resources were removed; the project demo volume remains for subsequent work.
+Remote PR/merge evidence follows in the next delivery log update.
 
 ## Final acceptance
 
