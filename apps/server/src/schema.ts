@@ -1,14 +1,18 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   foreignKey,
   integer,
+  pgEnum,
   pgTable,
   primaryKey,
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { returnStates, roles } from "../../../packages/contracts/src/index.ts";
 
 export const environmentIdentity = pgTable("environment_identity", {
   id: text().primaryKey(),
@@ -26,7 +30,7 @@ export const memberships = pgTable(
     userId: text()
       .notNull()
       .references(() => users.id),
-    role: text({ enum: ["customer", "support", "warehouse", "finance"] }).notNull(),
+    role: text({ enum: roles }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.merchantId, t.userId] })],
 );
@@ -96,3 +100,82 @@ export const orderUnits = pgTable(
   },
   (t) => [unique().on(t.lineId, t.position), check("nonnegative_unit", sql`${t.netMinor} >= 0`)],
 );
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    tokenHash: text().primaryKey(),
+    userId: text().notNull(),
+    merchantId: text().notNull(),
+    expiresAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.merchantId, t.userId],
+      foreignColumns: [memberships.merchantId, memberships.userId],
+    }),
+  ],
+);
+export const returnState = pgEnum("return_state", returnStates);
+export const returnRequests = pgTable(
+  "return_requests",
+  {
+    id: text().primaryKey(),
+    orderId: text()
+      .notNull()
+      .references(() => orders.id),
+    merchantId: text()
+      .notNull()
+      .references(() => merchants.id),
+    customerId: text()
+      .notNull()
+      .references(() => customers.id),
+    requestKey: text().notNull(),
+    fingerprint: text().notNull(),
+    reason: text().notNull(),
+    status: returnState().notNull().default("requested"),
+    amountMinor: integer().notNull(),
+    currency: text().notNull(),
+    requestedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    deadline: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    policyVersion: text().notNull(),
+  },
+  (t) => [
+    unique().on(t.customerId, t.requestKey),
+    check("positive_return_amount", sql`${t.amountMinor} > 0`),
+  ],
+);
+export const returnUnits = pgTable(
+  "return_units",
+  {
+    returnId: text()
+      .notNull()
+      .references(() => returnRequests.id),
+    unitId: text()
+      .notNull()
+      .references(() => orderUnits.id),
+    amountMinor: integer().notNull(),
+    active: boolean().notNull().default(true),
+  },
+  (t) => [
+    primaryKey({ columns: [t.returnId, t.unitId] }),
+    uniqueIndex("one_active_claim_per_unit").on(t.unitId).where(sql`${t.active} = true`),
+  ],
+);
+export const auditEntries = pgTable("audit_entries", {
+  id: text().primaryKey(),
+  returnId: text()
+    .notNull()
+    .references(() => returnRequests.id),
+  merchantId: text()
+    .notNull()
+    .references(() => merchants.id),
+  actorId: text()
+    .notNull()
+    .references(() => users.id),
+  event: text().notNull(),
+  reason: text().notNull(),
+  fromStatus: text(),
+  toStatus: text().notNull(),
+  at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+});
