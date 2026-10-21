@@ -1,0 +1,49 @@
+{
+  "name": "returns-and-refunds",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.23.0",
+  "engines": {
+    "node": ">=24.20.0 <25"
+  },
+  "scripts": {
+    "check": "tsc --noEmit && biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "tsx scripts/environment.ts integration",
+    "test:environment": "tsx scripts/verify-environment.ts",
+    "build": "vite build --config apps/web/vite.config.ts",
+    "dev": "tsx scripts/environment.ts dev",
+    "dev:down": "tsx scripts/environment.ts stop",
+    "env:doctor": "tsx scripts/environment.ts doctor",
+    "env:clean": "tsx scripts/environment.ts clean",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate": "tsx scripts/database.ts migrate",
+    "db:seed": "tsx scripts/database.ts seed"
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.3",
+    "@tanstack/react-query": "5.104.5",
+    "arktype": "2.2.9",
+    "drizzle-orm": "0.45.4",
+    "fastify": "5.12.7",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.10.0",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "drizzle-kit": "0.31.11",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}
