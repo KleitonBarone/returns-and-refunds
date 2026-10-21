@@ -620,7 +620,7 @@ export function simulatorEnvironment(env: NodeJS.ProcessEnv) {
 }
 export async function runEnvironment(
   mode: Manifest["mode"],
-  job?: (env: NodeJS.ProcessEnv, manifest: Manifest) => Promise<void>,
+  job?: (env: NodeJS.ProcessEnv, manifest: Manifest, stopped: Promise<void>) => Promise<void>,
 ) {
   const endpoint = await preflight();
   await mkdir(runsRoot, { recursive: true });
@@ -714,11 +714,18 @@ export async function runEnvironment(
   const stopped = new Promise<void>((accept) => {
     requestStop = accept;
   });
+  let currentJob: Promise<void> | undefined;
   watchFile(stopPath, { interval: 200 }, (info) => {
     if (info.nlink > 0) requestStop();
   });
   const interrupted = () => {
-    void finish().then(
+    requestStop();
+    const stop = async () => {
+      // Demo commands can reseed and launch services; settle them before taking the cleanup snapshot.
+      if (mode === "demo") await currentJob?.catch(() => {});
+      await finish();
+    };
+    void stop().then(
       () => process.exit(130),
       (error) => {
         console.error(error);
@@ -796,8 +803,10 @@ export async function runEnvironment(
     manifest.state = "running";
     await save(manifest);
     if (process.env.RETURNS_VERIFY_HOLD === "1") await stopped;
-    else if (job) await job(env, manifest);
-    else if (mode === "integration" || mode === "verify")
+    else if (job) {
+      currentJob = job(env, manifest, stopped);
+      await currentJob;
+    } else if (mode === "integration" || mode === "verify")
       await foreground(
         manifest,
         ["node_modules/vitest/vitest.mjs", "run", "--config", "vitest.integration.config.ts"],

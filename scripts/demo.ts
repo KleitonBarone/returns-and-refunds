@@ -122,7 +122,7 @@ async function freshScenarios(env: NodeJS.ProcessEnv, manifest: typeof manifestT
 }
 
 async function runDemo(once: boolean) {
-  await runEnvironment("demo", async (env, manifest) => {
+  await runEnvironment("demo", async (env, manifest, stopped) => {
     // Pin the business clock even if the caller has a different development override.
     env.DEMO_NOW = "2026-10-01T12:00:00.000Z";
     await launchApi(manifest, env);
@@ -147,7 +147,6 @@ async function runDemo(once: boolean) {
     );
     const directory = runPath(manifest.id);
     const commandPath = join(directory, "demo-command.json");
-    const stopPath = join(directory, "stop-request");
     let handling = false;
     let previous = "";
     async function reply(id: string, error?: string) {
@@ -159,11 +158,13 @@ async function runDemo(once: boolean) {
     }
     try {
       await new Promise<void>((accept, reject) => {
-        watchFile(stopPath, { interval: 100 }, (info) => {
-          if (info.nlink > 0) accept();
+        let stopping = false;
+        void stopped.then(() => {
+          stopping = true;
+          if (!handling) accept();
         });
         watchFile(commandPath, { interval: 100 }, (info) => {
-          if (handling || info.nlink === 0) return;
+          if (stopping || handling || info.nlink === 0) return;
           handling = true;
           void (async () => {
             const command = resetCommand.assert(JSON.parse(await readFile(commandPath, "utf8")));
@@ -182,12 +183,12 @@ async function runDemo(once: boolean) {
             .catch(reject)
             .finally(() => {
               handling = false;
+              if (stopping) accept();
             });
         });
       });
     } finally {
       unwatchFile(commandPath);
-      unwatchFile(stopPath);
     }
   });
 }
