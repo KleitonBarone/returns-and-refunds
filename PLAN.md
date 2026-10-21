@@ -44,9 +44,10 @@ work. A merged PR does not imply a deployed site.
 - Use a PostgreSQL outbox and worker, without a broker. The independent simulator
   exposes HTTP submission, status lookup, and diagnostics. It owns a separate
   persistent database and credentials. The application cannot read its SQL ledger.
-- Use one project-owned PostgreSQL instance with separate application and simulator
-  databases. Tests use separate disposable databases. No sibling checkout, paid
-  account, external authentication account, or payment credentials are required.
+- Use two project-owned PostgreSQL instances for the application and simulator,
+  with separate credentials and volumes. Tests use disposable instances. No sibling
+  checkout, paid account, external authentication account, or payment credentials
+  are required.
 - Use synthetic server sessions with a local persona picker. Seed support,
   warehouse, and finance users, two merchants, two customers in the primary
   merchant, and a customer in the second merchant. This is demo authentication.
@@ -91,8 +92,8 @@ management service. All commands in this section are planned, not available yet.
   so a partial startup can be cleaned up. Labels and a stale PID alone are not
   sufficient proof that a resource or process is still owned by the run.
 - Reuse the pinned PostgreSQL image and existing dependency/browser caches. Start
-  one PostgreSQL instance per environment with separate app/simulator databases,
-  adding the simulator database in PR 4. Set explicit container memory/CPU and
+  separate app/simulator instances per environment, adding the second in PR 4.
+  Set explicit container memory/CPU and
   connection-pool limits, then record measured settings adequate for these tests.
   Start with one browser worker; add concurrency only when measurements justify it.
 
@@ -605,7 +606,7 @@ commit `7b2fa99`, merged as `2992d18` after documentation checks.
 GitHub's merged PR record is authoritative; this file cannot contain its own
 future merge SHA.
 
-Delivery 5 is in progress; deliveries 6-9 have not started. During each delivery PR, add its URL, branch, included
+Delivery 6 is in progress; deliveries 7-9 have not started. During each delivery PR, add its URL, branch, included
 commits, and actual checks here. Include
 prior merge metadata in the next log update. Do not create another PR merely to
 record this documentation PR's merge SHA.
@@ -765,6 +766,63 @@ The exited worker remained as a zombie PID with an empty command line, which
 restart mistook for a changed live process. A disposable Linux reproduction
 confirmed the cause. Process identity now recognizes zombie/dead states as
 exited while preserving start-time and command-hash checks for live processes.
+Fix commit `7a66e2a` passed the full lifecycle suite on Windows and a disposable
+Linux reproduction using Node 24.20.0. Temporary reproduction tools, dependencies,
+and source files were removed after verified teardown. CI passed on `7a66e2a`;
+PR #7 merged as `29b0ad7` on October 21, 2026.
+
+### Implementation delivery 6. Recovery and signed events
+
+Branch `feat/refund-recovery` adds original-key status lookup, finance recovery
+reasons/history, and explicit same-operation retry only after a verified missing
+key. Unavailable or mismatched lookup keeps the refund reserved. A terminal
+rejection cannot be retried or replaced. Return details read one consistent
+database snapshot while asynchronous confirmations occur.
+
+Commit `43554c2` combines the proposed recovery and event commits because both
+use the worker's shared financial transition and atomic completion logic.
+Signed callbacks validate raw bytes, delivery time, provider, merchant, key,
+payment, amount, currency, and receipt identity. Unique event receipts commit with
+business effects and audit. Terminal events use lookup before opening SQL
+transactions, including contradictory events; delayed processing cannot regress
+success. Duplicate deliveries have no repeated financial or audit effect.
+Details and the deliberate terminal-lookup tradeoff are in
+`docs/refund-recovery.md`.
+
+Commit `93127e0` adds owned API restart/readiness and full service restart
+verification. Commit `41c0c89` corrects a browser-discovered demo control issue:
+event delay now covers processing as well as terminal events, so an immediate
+processing callback does not hide the unknown-outcome scenario. Its HTTP contract
+test verifies that no event sends early and duplicate events retain valid fresh
+signatures. The interface, documentation, and captured evidence form the next
+commit.
+
+Local evidence on October 21, 2026: type/lint/format checks, four unit checks,
+59 PostgreSQL/HTTP integration checks, and the production web build pass. New
+checks cover finance/merchant isolation, unavailable and mismatched lookup,
+missing-key retry, terminal rejection, raw signature/timestamp validation,
+mismatched events, concurrent duplicate delivery, recovery/event races, stale
+worker fencing, and contradictory terminal observations. Injected audit failures
+roll back financial success, event receipts, job acknowledgement, and attempts.
+Explicit barriers verify lookup does not hold an order transaction across HTTP.
+
+Lifecycle checks passed two fresh environments with actual API, worker, and
+simulator restarts after a successful provider write whose response was dropped.
+Original-key lookup recovered one ledger refund, then delayed processing and
+contradictory duplicate terminal deliveries left one success audit. Worker-crash
+lease reclamation, failed startup, abrupt supervisor termination, abandoned-run
+cleanup, and preservation of unrelated resources also passed.
+
+Browser verification used the retained demo data, completed customer/support/
+warehouse/finance actions, observed a reserved $50 unknown outcome, and recovered
+it through finance status lookup. Maya saw the same receipt and recovery history.
+Screenshots are `docs/evidence/screenshots/refund-unknown.jpg` and
+`refund-recovered.jpg`; actual bounded provider diagnostics are in
+`docs/evidence/refund-recovery-provider.json`. They contain one matching $50
+ledger entry. Simulator controls returned to success, both task browser tabs
+closed, and development shutdown verified teardown. Disposable test resources
+were removed; only the two project demo volumes remain. Remote PR/merge evidence
+follows in the next delivery update.
 
 ## Final acceptance
 

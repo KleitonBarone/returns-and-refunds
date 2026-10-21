@@ -1,0 +1,117 @@
+{
+  "runId": "returns-dev-bf74efb61236",
+  "ledger": [
+    {
+      "refundId": "ccb1589a-caa1-4765-bcc6-2a28d6b602f5",
+      "merchantId": "northline",
+      "paymentRef": "payment-order-1042",
+      "amountMinor": 3500,
+      "currency": "USD",
+      "recordedAt": "2026-10-01 12:00:00+00"
+    },
+    {
+      "refundId": "ad83e6f8-7a8f-4ad1-8817-80e47ae14d08",
+      "merchantId": "northline",
+      "paymentRef": "payment-order-1042",
+      "amountMinor": 3500,
+      "currency": "USD",
+      "recordedAt": "2026-10-01 12:00:00+00"
+    },
+    {
+      "refundId": "35848c39-eced-4e8c-8ef3-009d73a230f7",
+      "merchantId": "northline",
+      "paymentRef": "payment-order-1042",
+      "amountMinor": 5000,
+      "currency": "USD",
+      "recordedAt": "2026-10-01 12:00:00+00"
+    }
+  ],
+  "refunds": [
+    {
+      "id": "ccb1589a-caa1-4765-bcc6-2a28d6b602f5",
+      "merchantId": "northline",
+      "paymentRef": "payment-order-1042",
+      "idempotencyKey": "return-refund-c2fd4db6-6158-4c07-abe6-d4f82e6a6090",
+      "amountMinor": 3500,
+      "currency": "USD",
+      "status": "succeeded",
+      "failureCode": null
+    },
+    {
+      "id": "ad83e6f8-7a8f-4ad1-8817-80e47ae14d08",
+      "merchantId": "northline",
+      "paymentRef": "payment-order-1042",
+      "idempotencyKey": "return-refund-a477c77f-a294-4c7b-9768-6e265ccd3a5d",
+      "amountMinor": 3500,
+      "currency": "USD",
+      "status": "succeeded",
+      "failureCode": null
+    },
+    {
+      "id": "35848c39-eced-4e8c-8ef3-009d73a230f7",
+      "merchantId": "northline",
+      "paymentRef": "payment-order-1042",
+      "idempotencyKey": "return-refund-93997e9b-a2dd-4187-af94-667b42b2adf8",
+      "amountMinor": 5000,
+      "currency": "USD",
+      "status": "succeeded",
+      "failureCode": null
+    }
+  ],
+  "deliveries": [
+    {
+      "id": "01f3eab4-151a-4693-b941-7c4bd1103bdb",
+      "eventId": "803b5491-628d-4a0e-9198-af23c435626c",
+      "refundId": "ad83e6f8-7a8f-4ad1-8817-80e47ae14d08",
+      "runAt": "2026-10-21 14:48:17.479+00",
+      "deliveredAt": "2026-10-21 14:48:16.505+00",
+      "attempts": 1,
+      "lastStatus": 200
+    },
+    {
+      "id": "8580df99-da82-46b8-bb9f-ae4ac41a3171",
+      "eventId": "6d485c3d-5993-402c-a128-6d8a08cab37b",
+      "refundId": "ccb1589a-caa1-4765-bcc6-2a28d6b602f5",
+      "runAt": "2026-10-21 14:47:18.78+00",
+      "deliveredAt": "2026-10-21 14:46:48.825+00",
+      "attempts": 9,
+      "lastStatus": 200
+    },
+    {
+      "id": "4330495a-6d3c-4e90-b31e-6bc9faf20474",
+      "eventId": "2df2ffe2-0e83-46b8-b010-f9a45a4e4952",
+      "refundId": "ad83e6f8-7a8f-4ad1-8817-80e47ae14d08",
+      "runAt": "2026-10-21 14:49:17.691+00",
+      "deliveredAt": "2026-10-21 14:49:16.739+00",
+      "attempts": 1,
+      "lastStatus": 200
+    },
+    {
+      "id": "6a268f40-f702-4a08-ac8e-237b37118d7f",
+      "eventId": "313550c5-ff10-4d02-a772-38fd470c3afc",
+      "refundId": "ccb1589a-caa1-4765-bcc6-2a28d6b602f5",
+      "runAt": "2026-10-21 14:47:18.829+00",
+      "deliveredAt": "2026-10-21 14:46:48.867+00",
+      "attempts": 9,
+      "lastStatus": 200
+    },
+    {
+      "id": "300e4170-aaaf-4e57-a810-06e6ccd021e8",
+      "eventId": "df45e5ac-5bf2-4e81-a904-56a05668f401",
+      "refundId": "35848c39-eced-4e8c-8ef3-009d73a230f7",
+      "runAt": "2026-10-21 14:52:31.951+00",
+      "deliveredAt": "2026-10-21 14:52:31.002+00",
+      "attempts": 1,
+      "lastStatus": 200
+    },
+    {
+      "id": "be111bb7-9731-4641-ba2a-1f92a7920a0c",
+      "eventId": "572b78af-709c-4e63-bd35-fa5da24bd03b",
+      "refundId": "35848c39-eced-4e8c-8ef3-009d73a230f7",
+      "runAt": "2026-10-21 14:52:32.006+00",
+      "deliveredAt": "2026-10-21 14:52:31.025+00",
+      "attempts": 1,
+      "lastStatus": 200
+    }
+  ]
+}
