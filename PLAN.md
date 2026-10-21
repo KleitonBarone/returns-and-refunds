@@ -14,7 +14,7 @@ and merge timestamps as work finishes, never invent them.
 
 Execution is now authorized through the complete remaining plan, including
 commits, pushes, draft PRs, checks, and actual merges. Implementation delivery 1
-has local foundation code and verification; its PR/merge evidence follows below.
+is merged. Delivery 2 has local customer-request code and verification.
 
 Build a local portfolio application for Kleiton, a senior engineer in Brazil
 targeting international remote roles. Recruiters should recognize the commerce
@@ -600,12 +600,12 @@ the earlier feature tests; PRs 8-9 deliver repeatable evidence and portfolio han
 Delivery PR 0 was [GitHub PR #1](https://github.com/KleitonBarone/returns-and-refunds/pull/1),
 on `docs/complete-delivery-plan` from `f5cd68a`. Commit `d890dfc` passed documentation
 structure/link/whitespace checks and merged as `6448a3d` on October 19, 2026.
-The environment/cleanup refinement follows on `docs/test-environment-cleanup`.
-Report its actual commit, PR URL, checks, and merge result after delivery.
+The environment/cleanup refinement was [GitHub PR #2](https://github.com/KleitonBarone/returns-and-refunds/pull/2),
+commit `7b2fa99`, merged as `2992d18` after documentation checks.
 GitHub's merged PR record is authoritative; this file cannot contain its own
 future merge SHA.
 
-PRs 2-9 have not started. During each delivery PR, add its URL, branch, included
+Deliveries 3-9 have not started. During each delivery PR, add its URL, branch, included
 commits, and actual checks here. Include
 prior merge metadata in the next log update. Do not create another PR merely to
 record this documentation PR's merge SHA.
@@ -630,8 +630,31 @@ resources. The temporary sentinel volume and all disposable run resources were
 removed. The PostgreSQL image and installed workspace/package dependencies remain
 available for subsequent implementation work.
 
-Record the actual PR URL and merge result after remote checks. This delivery
-does not yet implement customer returns or the payment simulator.
+[GitHub PR #3](https://github.com/KleitonBarone/returns-and-refunds/pull/3) merged as
+`0596abf` after CI passed on `d8173cc`. Included commits: `1f1225e`, `c00ac8e`,
+`65ac104`, `b6260b7`, and `d8173cc`.
+
+### Implementation delivery 2. Customer requests
+
+Branch `feat/customer-return-requests` adds scoped demo sessions, customer orders,
+partial returns, stored policy/unit values, transactional claims and history, and
+the customer/support interface. The API, schema, contracts, and correctness tests
+form one commit because they depend on one another; the interface and evidence
+form the next commit. This combines the first two proposed subjects.
+
+Local evidence on October 21, 2026: type/lint/format checks, four unit checks,
+nine PostgreSQL checks, and the production web build pass. Tests cover exact UTC
+deadlines, future delivery, integer allocation, invalid quantities, ownership,
+merchant/role isolation, repeated submissions, consumed units, and two requests
+blocked concurrently on the same order lock. Only one claims the selected units.
+
+Browser verification created a $35 partial request, opened its policy/history in
+Ava's queue, confirmed Robin's separate merchant queue stayed empty, and checked
+the expired order's disabled form. Evidence is saved in
+`docs/evidence/screenshots/customer-request.jpg`. The preview processes,
+container, and network stopped with verified teardown. Its project-owned demo
+volume remains available; disposable test resources were removed. Remote PR and
+merge evidence follows in the next delivery log update.
 
 ## Final acceptance
 

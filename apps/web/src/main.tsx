@@ -1,28 +1,114 @@
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { healthResponse } from "../../../packages/contracts/src/index.ts";
+import { sessionContract } from "../../../packages/contracts/src/index.ts";
+import { api } from "./api.ts";
+import { date, Workspace } from "./workspace.tsx";
 import "./style.css";
 
 function App() {
-  const health = useQuery({
-    queryKey: ["health"],
-    queryFn: async () => healthResponse.assert(await (await fetch("/api/health")).json()),
+  const client = useQueryClient();
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: async () => sessionContract.assert(await api("/session")),
+    retry: 1,
+  });
+  const switchPersona = useMutation({
+    mutationFn: async (personaId: string) =>
+      sessionContract.assert(await api("/session", { personaId })),
+    onSuccess: async (result) => {
+      await client.cancelQueries();
+      client.removeQueries({ predicate: (query) => query.queryKey[0] !== "session" });
+      client.setQueryData(["session"], result);
+    },
   });
   return (
-    <main className="foundation">
-      <div className="brand-mark">N</div>
-      <p>Northline Supply</p>
-      <h1>Every return has a next step.</h1>
-      <p>Your workspace for customer requests, warehouse decisions, and refund recovery.</p>
-      <p role="status">
-        {health.isSuccess
-          ? `Local environment ready. Demo clock: ${health.data.demoNow}`
-          : health.isError
-            ? "API unavailable. Check the local environment."
-            : "Connecting to your local environment…"}
-      </p>
-    </main>
+    <>
+      <a className="skip-link" href="#main">
+        Skip to workspace
+      </a>
+      <header className="app-header">
+        <div className="brand">
+          <div className="brand-mark" aria-hidden="true">
+            {session.data?.actor?.merchantName[0] ?? "N"}
+          </div>
+          <div>
+            <strong>{session.data?.actor?.merchantName ?? "Northline Supply"}</strong>
+            <span>Returns workspace</span>
+          </div>
+        </div>
+        <div className="demo-tools">
+          <span className="demo-clock">
+            Local demo · {session.data ? date(session.data.demoNow) : "Connecting"}
+          </span>
+          <label>
+            Demo persona
+            <select
+              value={session.data?.actor?.id ?? ""}
+              disabled={switchPersona.isPending}
+              onChange={(event) => switchPersona.mutate(event.target.value)}
+            >
+              <option value="" disabled>
+                Choose a persona
+              </option>
+              {session.data?.personas.map((persona) => (
+                <option key={persona.id} value={persona.id}>
+                  {persona.name} ({persona.role}
+                  {persona.merchantId === "northline" ? "" : ", other merchant"})
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </header>
+      <main id="main" className="app-main">
+        {session.isError ? (
+          <section className="empty-detail">
+            <h1>The workspace is unavailable</h1>
+            <p role="alert">{session.error.message}</p>
+            <button type="button" onClick={() => session.refetch()}>
+              Try again
+            </button>
+          </section>
+        ) : session.isPending ? (
+          <p role="status">Connecting to the workspace…</p>
+        ) : session.data.actor ? (
+          <Workspace key={session.data.actor.id} actor={session.data.actor} />
+        ) : (
+          <section className="welcome">
+            <span className="status status-open">Fictional merchant, real workflow</span>
+            <h1>
+              Follow a return.
+              <br />
+              Understand every decision.
+            </h1>
+            <p>
+              Choose Maya to request a return, then switch to the support, warehouse, and finance
+              teams to follow its progress.
+            </p>
+            <button
+              className="primary"
+              type="button"
+              onClick={() => switchPersona.mutate("customer-maya")}
+            >
+              Open Maya's orders
+            </button>
+            <p className="muted small">Synthetic data. Local services. No real payments.</p>
+          </section>
+        )}
+        {switchPersona.isError && (
+          <p className="error" role="alert">
+            {switchPersona.error.message}
+          </p>
+        )}
+      </main>
+    </>
   );
 }
 const root = document.getElementById("root");

@@ -7,11 +7,17 @@ merchant can explain each decision and recover a failed refund.
 The default environment uses fictional orders and a local payment simulator.
 No merchant account, real customer, card, or movement of money is required.
 
-**Status: foundation implemented.** The web/API shell, PostgreSQL schema,
-deterministic seeds, isolated verification, and environment cleanup are available.
-Customer returns, inspections, and refunds follow in the remaining
+**Status: customer return requests implemented.** Choose a demo persona, select
+part of an eligible order, and follow the request in the merchant queue. Requests
+reserve purchased units and record their policy and decision history atomically.
+Inspections and refunds follow in the remaining
 [delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
 from the next incomplete delivery PR.
+
+Open Maya's orders to request a return, then choose Ava to see it in support's
+queue. Maya's older order shows the expired window. Robin's queue belongs to
+the separate Other Store merchant. Persona switching is a local demo feature,
+not production authentication.
 
 The plan also defines reproducible local and end-to-end test environments,
 readiness checks, deterministic fixtures, and cleanup after success or failure.
