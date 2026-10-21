@@ -616,6 +616,9 @@ Branch `feat/local-foundation` adds the typed workspace, initial migration and
 seed, real database/API checks, isolated environment runner, scoped cleanup,
 and CI. The environment runner also handles this machine's exhausted automatic
 Docker pools by selecting a free subnet without modifying existing networks.
+Live preview verification also exposed WSL idle shutdown stopping PostgreSQL.
+The runner now owns a WSL session for the run and releases it after Docker
+teardown, with bounded connection waits and useful API error diagnostics.
 
 Local evidence on October 20, 2026: Node 24.20.0, pnpm 11.23.0, WSL Ubuntu,
 Docker 29.8.0, Compose 5.5.1, PostgreSQL 18.1 pinned by digest. Type/lint/format

@@ -54,6 +54,9 @@ fixtures. It never resets existing progress on startup. Open
 The database uses port 55432. Copy `.env.example` to `.env` to override local
 ports or the explicitly fictional clock. The runner generates local database
 credentials and ignores an inherited `DATABASE_URL` when creating its environment.
+The runner holds a tracked WSL session while services run, so Ubuntu's idle
+shutdown cannot silently stop PostgreSQL. Teardown releases that session last;
+it does not change WSL configuration.
 
 Stop with Ctrl+C or run `pnpm dev:down` in another terminal. Normal shutdown
 removes project processes, containers, and networks while preserving its named

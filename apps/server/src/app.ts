@@ -6,6 +6,13 @@ import { environmentIdentity } from "./schema.ts";
 
 export async function createApp(db: Database, config: ReturnType<typeof readConfig>) {
   const app = Fastify({ logger: false, bodyLimit: 65536 });
+  app.setErrorHandler((error, _request, reply) => {
+    const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
+    console.error(cause instanceof Error ? cause.message : "Unexpected API failure");
+    return reply
+      .code(500)
+      .send({ message: "Local service unavailable. Inspect the API diagnostics." });
+  });
   app.get("/api/health", async () => {
     const [identity] = await db
       .select()

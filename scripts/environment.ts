@@ -30,6 +30,7 @@ const manifestType = type({
   state: "'starting' | 'running' | 'cleaning' | 'failed'",
   dockerEndpoint: "string",
   subnet: "string",
+  "keepalivePid?": "number.integer > 0",
 });
 type Manifest = typeof manifestType.infer;
 
@@ -221,8 +222,8 @@ async function cleanup(manifest: Manifest, active = false) {
     throw new Error("Refusing cleanup of an active run");
   manifest.state = "cleaning";
   await save(manifest);
-  for (const child of [...manifest.children].reverse()) {
-    if (!(await matches(child))) continue;
+  async function stopChild(child: typeof processIdentity.infer) {
+    if (!(await matches(child))) return;
     if (windows) {
       try {
         command("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"]);
@@ -234,6 +235,9 @@ async function cleanup(manifest: Manifest, active = false) {
       for (let i = 0; i < 30 && (await matches(child)); i++) await delay(100);
       if (await matches(child)) process.kill(child.pid, "SIGKILL");
     }
+  }
+  for (const child of [...manifest.children].reverse()) {
+    if (child.pid !== manifest.keepalivePid) await stopChild(child);
   }
   const containers = ownedResources(manifest, "ps");
   for (const container of containers) {
@@ -282,6 +286,8 @@ async function cleanup(manifest: Manifest, active = false) {
     (manifest.mode !== "dev" && ownedResources(manifest, "volume").length)
   )
     throw new Error("Run-owned Docker resources remain");
+  const keepalive = manifest.children.find((child) => child.pid === manifest.keepalivePid);
+  if (keepalive) await stopChild(keepalive);
   for (const child of manifest.children)
     if (await matches(child)) throw new Error(`Owned process ${child.pid} remains`);
   for (const port of [manifest.apiPort, manifest.webPort, manifest.dbPort]) await freePort(port);
@@ -294,7 +300,12 @@ async function cleanup(manifest: Manifest, active = false) {
     `Cleaned ${manifest.id}; ${manifest.mode === "dev" ? "demo volume preserved" : "no disposable resources retained"}.`,
   );
 }
-async function launch(manifest: Manifest, args: string[], env: NodeJS.ProcessEnv) {
+async function launch(
+  manifest: Manifest,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  binary = process.execPath,
+) {
   const output = await import("node:fs");
   const logPath = join(runPath(manifest.id), `process-${manifest.children.length}.log`);
   const descriptor = output.openSync(logPath, "w");
@@ -306,7 +317,7 @@ async function launch(manifest: Manifest, args: string[], env: NodeJS.ProcessEnv
     }
     position += output.writeSync(descriptor, chunk, 0, chunk.length, position);
   }
-  const child = spawn(process.execPath, args, {
+  const child = spawn(binary, args, {
     cwd: root,
     env,
     windowsHide: true,
@@ -431,6 +442,13 @@ export async function runEnvironment(
   process.once("SIGINT", interrupted);
   process.once("SIGTERM", interrupted);
   try {
+    const lease = windows
+      ? await launch(manifest, ["-d", "Ubuntu", "--exec", "sleep", "infinity"], env, "wsl.exe")
+      : undefined;
+    if (lease) {
+      manifest.keepalivePid = lease.pid;
+      await save(manifest);
+    }
     await writeFile(
       join(directory, "baseline.json"),
       JSON.stringify({
@@ -488,7 +506,7 @@ export async function runEnvironment(
       await Promise.race([
         stopped,
         new Promise<void>((_, reject) => {
-          for (const child of [api, web])
+          for (const child of [api, web, ...(lease ? [lease] : [])])
             child.once("exit", (code) => reject(new Error(`Service exited (${code})`)));
         }),
       ]);
