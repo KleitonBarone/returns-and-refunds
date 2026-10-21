@@ -1,17 +1,17 @@
 # Returns and refunds
 
-A planned operations console for reviewing return requests, recording warehouse
+A local operations console for reviewing return requests, recording warehouse
 inspection, and issuing refunds. The customer can follow the request while the
 merchant can explain each decision and recover a failed refund.
 
 The default environment uses fictional orders and a local payment simulator.
 No merchant account, real customer, card, or movement of money is required.
 
-**Status: planning only.** Application code and working installation instructions
-have not been added. The [delivery plan](PLAN.md) covers nine implementation PRs,
-their proposed commits, acceptance checks, pushes, reviews, and verified merges.
-Use the [thread starter](THREAD_START.md) to begin the next delivery step in a
-development conversation.
+**Status: foundation implemented.** The web/API shell, PostgreSQL schema,
+deterministic seeds, isolated verification, and environment cleanup are available.
+Customer returns, inspections, and refunds follow in the remaining
+[delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
+from the next incomplete delivery PR.
 
 The plan also defines reproducible local and end-to-end test environments,
 readiness checks, deterministic fixtures, and cleanup after success or failure.
@@ -34,3 +34,56 @@ provider behavior and customer outcomes.
 
 The final handoff includes a repeatable local demonstration, screenshots, an
 English walkthrough, and a case study. Public hosting is optional future work.
+
+## Run locally
+
+Use Node 24.20.0 in the 24.x line and pnpm 11.23.0. On Windows, Docker Engine and
+Compose run in WSL Ubuntu; Windows Node/pnpm run the application. No Docker
+Desktop install or Docker context changes are needed. Linux CI runs the same
+scripts with native Docker. Allow at least 2 GiB free disk space.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm env:doctor
+pnpm dev
+```
+
+The runner waits for PostgreSQL, applies migrations, and creates missing demo
+fixtures. It never resets existing progress on startup. Open
+`http://127.0.0.1:4320`; API readiness is at `http://127.0.0.1:4321/api/health`.
+The database uses port 55432. Copy `.env.example` to `.env` to override local
+ports or the explicitly fictional clock. The runner generates local database
+credentials and ignores an inherited `DATABASE_URL` when creating its environment.
+
+Stop with Ctrl+C or run `pnpm dev:down` in another terminal. Normal shutdown
+removes project processes, containers, and networks while preserving its named
+demo volume. No services need to remain running between development sessions.
+
+## Verify and clean up
+
+```sh
+pnpm check
+pnpm test
+pnpm build
+pnpm test:integration
+pnpm test:environment
+```
+
+Integration runs create their own PostgreSQL instance and fixtures. Environment
+verification exercises two fresh startups, persisted changes across migration/seed
+reruns, real HTTP readiness, injected startup failure, abrupt termination, and
+abandoned-run recovery. All disposable containers, networks, volumes, and child
+processes must be gone afterward. PostgreSQL is limited to 512 MiB, one CPU, and
+30 connections; application pools use four connections.
+
+Inspect an abandoned run with `pnpm env:clean <run-id>`, then add `--apply` to
+remove its verified resources. `pnpm env:clean --all --apply` handles recorded
+inactive runs for this checkout. Active or mismatched resources are refused.
+Manifests live under ignored `.local/runs`; the latest result and bounded failure
+diagnostics live under `.local`. Persistent demo volumes and shared caches are
+preserved. Never use global Docker pruning for this project.
+
+Docker subnet selection checks existing container networks and host routes,
+excluding default routes. This also works when existing projects exhaust Docker's
+automatic pools. It does not remove or modify their networks. The pinned
+PostgreSQL image is reused between runs and is an intentional local dependency.

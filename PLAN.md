@@ -12,8 +12,9 @@ proposed implementation commits. The PR labels below describe delivery order,
 not assigned GitHub numbers. Record real PR numbers, commit hashes, check results,
 and merge timestamps as work finishes, never invent them.
 
-The current work extends the planning documents through a follow-up documentation
-PR. Application implementation starts in a later execution run.
+Execution is now authorized through the complete remaining plan, including
+commits, pushes, draft PRs, checks, and actual merges. Implementation delivery 1
+has local foundation code and verification; its PR/merge evidence follows below.
 
 Build a local portfolio application for Kleiton, a senior engineer in Brazil
 targeting international remote roles. Recruiters should recognize the commerce
@@ -604,10 +605,30 @@ Report its actual commit, PR URL, checks, and merge result after delivery.
 GitHub's merged PR record is authoritative; this file cannot contain its own
 future merge SHA.
 
-PRs 1-9 are planned with no assigned PR numbers or implementation commits. During
-each PR, add its URL, branch, included commits, and actual checks here. Include
+PRs 2-9 have not started. During each delivery PR, add its URL, branch, included
+commits, and actual checks here. Include
 prior merge metadata in the next log update. Do not create another PR merely to
 record this documentation PR's merge SHA.
+
+### Implementation delivery 1. Local foundation
+
+Branch `feat/local-foundation` adds the typed workspace, initial migration and
+seed, real database/API checks, isolated environment runner, scoped cleanup,
+and CI. The environment runner also handles this machine's exhausted automatic
+Docker pools by selecting a free subnet without modifying existing networks.
+
+Local evidence on October 20, 2026: Node 24.20.0, pnpm 11.23.0, WSL Ubuntu,
+Docker 29.8.0, Compose 5.5.1, PostgreSQL 18.1 pinned by digest. Type/lint/format
+checks, two unit checks, three real PostgreSQL checks, and the Vite build pass.
+Lifecycle verification passed two fresh runs, preservation across migration/seed
+reruns, real HTTP identity readiness, injected startup failure, abrupt supervisor
+termination, abandoned-run cleanup, and preservation of unrelated fixture/network
+resources. The temporary sentinel volume and all disposable run resources were
+removed. The PostgreSQL image and installed workspace/package dependencies remain
+available for subsequent implementation work.
+
+Record the actual PR URL and merge result after remote checks. This delivery
+does not yet implement customer returns or the payment simulator.
 
 ## Final acceptance
 
