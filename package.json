@@ -12,6 +12,9 @@
     "test": "vitest run --config vitest.config.ts",
     "test:integration": "tsx scripts/environment.ts integration",
     "test:environment": "tsx scripts/verify-environment.ts",
+    "test:e2e": "tsx scripts/e2e.ts",
+    "test:e2e:environment": "tsx scripts/verify-e2e-environment.ts",
+    "browser:install": "tsx scripts/install-browser.ts",
     "build": "vite build --config apps/web/vite.config.ts",
     "dev": "tsx scripts/environment.ts dev",
     "dev:down": "tsx scripts/environment.ts stop",
@@ -35,6 +38,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.10.0",
     "@types/pg": "8.23.1",

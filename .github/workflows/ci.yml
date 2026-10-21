@@ -19,11 +19,14 @@ jobs:
           node-version: 24.20.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm browser:install --with-deps
       - run: pnpm check
       - run: pnpm test
       - run: pnpm build
       - run: pnpm test:integration
       - run: pnpm test:environment
+      - run: pnpm test:e2e
+      - run: pnpm test:e2e:environment
       - name: Release disposable environments
         if: always()
         run: pnpm env:clean --all --apply
@@ -31,6 +34,8 @@ jobs:
         if: failure()
         with:
           name: failure-diagnostics
-          path: .local/last-failure.log
+          path: |
+            .local/last-failure.log
+            .local/e2e-last-failure/
           retention-days: 7
           if-no-files-found: ignore
