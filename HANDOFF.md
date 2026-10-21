@@ -26,6 +26,8 @@ Open the printed URL. Press Enter in the runner to execute its real keyboard
 journeys and clean up. Ctrl+C ends inspection early. Normal browser checks use
 the same fresh full stack without the pause. On Linux, `browser:install --with-deps`
 also installs Chromium system libraries; CI provisions them on its runner.
+`test:e2e:environment` deliberately fails an assertion and terminates its owned
+supervisor. Its successful exit means the diagnostics and recovery checks passed.
 
 ## Reproduce the recording
 
@@ -66,8 +68,17 @@ belong to that checkout's `.local/browsers`; `browser:install` obtains the pinne
 revision. `pnpm demo:run --once` exercises automatic migration, seed, scenarios,
 and teardown without leaving an interactive environment running.
 
-The final delivery records the rehearsal's exact source, commands, observations,
-and cleanup in its verification evidence. After the final PR merges, the final
+The [clean-checkout record](docs/evidence/clean-checkout.json) reports a public
+clone of `8d727a6`, frozen install, preflight, all checks, browser download, demo,
+and development startup/shutdown. All 15 commands exited zero. Both browser
+journeys passed in 21.5 seconds. The rehearsal used its own workspace identity,
+ports, databases, and browser cache. A temporary `.env` set all five port values
+to zero to obtain assigned development ports; it was removed afterward.
+Development shutdown preserved the newly created volumes, then explicit
+ownership-checked rehearsal cleanup removed just those two volumes. Original
+development data survived. No rehearsal service, network, or volume remains.
+
+After the final PR merges, the final
 remote SHA must be checked in that separate clone and its final checks rerun.
 The release's `final-verification.json` records that post-merge result; this file
 does not claim a future merge or its checks in advance.
@@ -107,3 +118,13 @@ retained disk usage. To discard an unused checkout's browser cache, first stop
 its browser runs, then remove only that checkout's `.local/browsers`; reinstall
 it with `browser:install` when needed. Shared package caches and Docker images
 are not automatically pruned.
+
+Measured retained resources are recorded in
+[retained-resources.json](docs/evidence/retained-resources.json). The original
+development pair uses about 64 and 63 MiB of logical file data. The PostgreSQL
+image is about 383 MiB, the dedicated Chromium cache 441 MiB, and installed package
+files 258 MiB. Package hard links and image layers can share physical storage;
+these are not additive measurements of machine disk use. Browser diagnostics
+and the web build are under 1 MiB each. The temporary clean clone, its separate
+browser cache, and local recording/conversion files are tracked until final
+remote verification and removed afterward. The published release retains the MP4.

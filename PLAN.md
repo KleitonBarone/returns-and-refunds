@@ -2,10 +2,10 @@
 
 ## Starting point and completion
 
-As of October 19, 2026, the repository contains planning documents only. Planning
+On October 19, 2026, the repository contained planning documents only. Planning
 started at `f5cd68a`, and the initial plan was merged through GitHub PR #1 as
-`6448a3d`. The default branch is `main`. There are no application services,
-migrations, tests, or CI workflows yet.
+`6448a3d`. The default branch is `main`. Application services, migrations, tests,
+and CI were added through the implementation deliveries recorded below.
 
 This plan contains the documentation delivery and nine implementation PRs with 23
 proposed implementation commits. The PR labels below describe delivery order,
@@ -14,8 +14,9 @@ and merge timestamps as work finishes, never invent them.
 
 Execution is now authorized through the complete remaining plan, including
 commits, pushes, draft PRs, checks, and actual merges. Implementation deliveries 1
-through 7 are merged. Delivery 8 adds repeatable scenarios and a guarded reset;
-delivery 9 remains the final portfolio handoff and clean-checkout verification.
+through 8 are merged. Delivery 9 adds the final portfolio handoff, recorded
+walkthrough, and clean-checkout verification. Final closure requires its actual
+merge and post-merge checks; those results must not be inferred from an open PR.
 
 Build a local portfolio application for Kleiton, a senior engineer in Brazil
 targeting international remote roles. Recruiters should recognize the commerce
@@ -67,7 +68,8 @@ this repository independently runnable.
 
 Build the environment lifecycle in PR 1 and extend it as services arrive. Keep it
 in small repository scripts and Compose configuration, not a general environment
-management service. All commands in this section are planned, not available yet.
+management service. These contracts are implemented; current commands and
+prerequisites are documented in README.md and HANDOFF.md.
 
 ### Setup and isolation
 
@@ -550,7 +552,7 @@ smoke checks without a new reason do not.
 
 ## Verification and evidence
 
-The named scripts are planned contracts, not commands that exist today:
+The following scripts exist. The delivery labels record when they were introduced:
 
 - PR 1 onward: `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm test`,
   `pnpm test:integration`, `pnpm build`, `pnpm env:doctor`, `pnpm dev`,
@@ -607,7 +609,7 @@ commit `7b2fa99`, merged as `2992d18` after documentation checks.
 GitHub's merged PR record is authoritative; this file cannot contain its own
 future merge SHA.
 
-Deliveries 1-7 are merged; delivery 8 is in progress and delivery 9 follows. During each delivery PR, add its URL, branch, included
+Deliveries 1-8 are merged; delivery 9 is the final handoff. During each delivery PR, add its URL, branch, included
 commits, and actual checks here. Include
 prior merge metadata in the next log update. Do not create another PR merely to
 record this documentation PR's merge SHA.
@@ -901,8 +903,10 @@ starting `feat/repeatable-demo`. The watcher was stopped after merge.
 
 Branch `feat/repeatable-demo` adds `demo:run`, `demo:verify`, and `demo:reset`.
 [GitHub PR #10](https://github.com/KleitonBarone/returns-and-refunds/pull/10)
-is the draft delivery PR. Its CI and merge status will be checked on the final
-pushed head; no merge is claimed here.
+passed its complete CI check on `ef15922`, with no reviews or inline findings.
+It merged at `2026-10-21T19:21:43Z` as
+`ba33d5732e7d10dca4d0ffba6660a15b42a20e35`. Local main was fast-forwarded and
+verified before creating `docs/portfolio-handoff`; its watcher was stopped.
 Commit `28f128f` contains the deterministic scenarios, additional demo-only
 database markers, paired reset, command interface, refusal/partial-commit checks,
 guide, and CI gate. Fresh startup exposed an initialization-socket readiness race;
@@ -913,6 +917,7 @@ service pointers while retaining ownership checks.
 Commit `0860c70` makes a stop wait for an active demo reset before cleanup takes
 its child-process snapshot. This extra fix commit prevents scenario seeding from
 launching services after cleanup has already started.
+Commit `ef15922` records the financial, reset, and active-shutdown evidence.
 
 The committed-source verification run
 `codex-returns-test-5c7d8cb2-8b7f-44a7-927e-4bf0b417aa19` passed two equivalent
@@ -941,36 +946,83 @@ The [shutdown record](docs/evidence/demo-shutdown.json) preserves that result.
 No workspace-owned container or network remained; only the two original retained
 development volumes remained. Existing PostgreSQL and browser caches were reused.
 
+### Implementation delivery 9. Portfolio handoff and clean-checkout acceptance
+
+Branch `docs/portfolio-handoff` is
+[GitHub PR #11](https://github.com/KleitonBarone/returns-and-refunds/pull/11).
+It opens as a draft. Its final head must pass CI and review checks before the
+authorized merge and exact remote-main verification.
+
+Commit `8d727a6` adds the 544-word README, handoff, architecture/transaction
+explanation, recovery case study, and reproducible `demo:record` command.
+The existing keyboard journey records the real workflow with English captions;
+ordinary checks retain their normal viewport and keep video off. A closing-caption
+paint issue found in frame review was corrected before the published capture.
+
+The published [walkthrough release](https://github.com/KleitonBarone/returns-and-refunds/releases/tag/portfolio-walkthrough-2026-10-21)
+contains the 91.04-second MP4, 1686867 bytes. Its anonymous download matched
+SHA-256 `547aa27ae87bd9bd8290d33bead67a136d6f0ffc36f6ddfff2287808441c5142`.
+Frames at 8, 35, 55, 75, and 89 seconds were inspected. The capture used actual
+API/worker/simulator restarts, one USD provider ledger entry of 3500 minor units,
+or $35.00, three signed late-event copies returning 200, and one success audit.
+There is no spoken
+narration. All disposable recording resources were removed. The
+[recording notes](docs/walkthrough.md) link the transcript, financial record,
+source, media metadata, and cleanup result.
+
+The fresh-clone rehearsal and final remote-main closure are recorded separately.
+The [fresh-clone record](docs/evidence/clean-checkout.json) verifies source
+`8d727a6` from the public remote. Frozen install reused 152 package-store entries;
+the clone downloaded its own matching browser. All 15 commands passed, including
+type/unit/build/integration/lifecycle/browser checks, reset/recovery verification,
+one-shot migration/seed/demo, and assigned-port development startup/shutdown.
+Its two browser journeys passed in 21.5 seconds. Expected browser-failure evidence
+used 7 files and 62695 bytes; supervisor-death cleanup passed. Development shutdown
+preserved the two new rehearsal volumes, then explicitly verified ownership before
+removing those temporary volumes. No rehearsal process, container, network, or
+volume remained. The clean clone and its cache are retained only for the exact
+post-merge SHA check. The handoff records measured retained resources and cleanup.
+
+The final release's `final-verification.json` is written only after this delivery
+actually merges and its exact remote SHA passes the clean-checkout checks.
+GitHub's merge record and that final artifact are authoritative for these
+post-merge gates; this PR cannot contain its own future merge SHA.
+
 ## Final acceptance
+
+These checkboxes record evidence available before the final PR merges. The two
+remote-main gates remain open at that point. Their completed result is recorded
+in the walkthrough release's `final-verification.json` after the actual merge,
+exact-SHA checks, and removal of the rehearsal checkout.
 
 - [ ] All planned capabilities exist on remote main and all delivery PRs are
   merged, with their URLs, commits, and final checks accounted for.
-- [ ] A clean checkout runs with documented local prerequisites and no sibling
+- [x] A clean checkout runs with documented local prerequisites and no sibling
   repository, paid account, real credentials, or existing development environment.
-- [ ] A documented preflight and supervised startup produce an identifiable,
+- [x] A documented preflight and supervised startup produce an identifiable,
   ready environment. Full-stack browser checks use isolated fixtures and ports
   with real API/worker/PostgreSQL/simulator behavior locally and in CI.
-- [ ] Repeated runs, failed/interrupted startup, and abandoned-run recovery leave
+- [x] Repeated runs, failed/interrupted startup, and abandoned-run recovery leave
   no run-owned processes, listeners, containers, networks, disposable volumes, or
   builders. Unrelated resources and persistent demo data survive cleanup.
-- [ ] Logs, traces, screenshots, CI artifacts, and temporary builds/checkouts have
+- [x] Logs, traces, screenshots, CI artifacts, and temporary builds/checkouts have
   bounded retention. The handoff lists intentionally retained volumes/images/caches
   and verifies cleanup rather than hiding leftover resources after passing tests.
-- [ ] Customer, support, warehouse, and finance complete the partial-return flow
+- [x] Customer, support, warehouse, and finance complete the partial-return flow
   with the correct amount, policy explanation, history, and recovery action.
-- [ ] Customer ownership and merchant/role isolation hold for reads and mutations.
+- [x] Customer ownership and merchant/role isolation hold for reads and mutations.
   Competing requests/decisions/refunds preserve units, capture limits, and audit.
-- [ ] Lost responses and service restarts recover the original operation, leaving
+- [x] Lost responses and service restarts recover the original operation, leaving
   one financial refund under the documented simulator contract.
-- [ ] Duplicate, delayed, invalid, and mismatched events neither duplicate funds
+- [x] Duplicate, delayed, invalid, and mismatched events neither duplicate funds
   nor regress success. Unknown outcomes keep their reservations.
-- [ ] Reset refuses unmarked databases and changes only the paired disposable
+- [x] Reset refuses unmarked databases and changes only the paired disposable
   project environment. Repeated scenarios produce the documented assertions.
 - [ ] Desktop, narrow layouts, keyboard flows, and error states are inspected.
   Required checks and browser journeys pass on the final merged tree.
-- [ ] Verified README setup, screenshots, an English walkthrough, a case study,
+- [x] Verified README setup, screenshots, an English walkthrough, a case study,
   and scenario evidence are available and accurately describe local simulation.
-- [ ] No invented customer outcomes, production volumes, real-provider
+- [x] No invented customer outcomes, production volumes, real-provider
   certification, application completion, or public deployment are claimed.
 
 ## References

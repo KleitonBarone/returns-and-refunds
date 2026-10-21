@@ -1,66 +1,35 @@
-# Continue the returns and refunds project
+# Resume work on returns and refunds
 
-Open `C:\Users\admin\repos\returns-and-refunds` as its own project and use the
-prompt below. Check the delivery log and GitHub first so completed work is not
-repeated. Merging planning documents does not implement the application.
+The application and repeatable scenarios are implemented. Read [README.md](README.md)
+to run it, [HANDOFF.md](HANDOFF.md) for recording/cleanup, and [PLAN.md](PLAN.md)
+for the actual delivery history. Check GitHub's current PR/merge state and the
+walkthrough release's final verification artifact before declaring delivery closed.
+An open PR or a local commit does not establish that the final remote tree passed.
 
-```text
-We are building my returns-and-refunds portfolio project. Read README.md and
-PLAN.md, applicable agent instructions, Git history, and current PR status.
-Verify what has actually merged before choosing the next incomplete delivery PR.
-
-I am Kleiton, a senior engineer in Brazil targeting international remote roles.
-Build a return and refund workflow recruiters can follow and engineers can inspect
-for financial correctness and recovery. All data is fictional; evidence comes
-from author-performed local verification.
-
-Implement only the next incomplete PR in PLAN.md through its acceptance gate.
-Use its branch and proposed logical commits, incorporate latest origin/main before
-opening a draft PR, push, register it with T3, and inspect CI/reviews on the final
-head. Update actual evidence in the plan. Do not start later PRs during this run.
-
-This run authorizes committing, pushing, marking the finished draft ready, and
-actually merging that one PR once its checks and repository requirements pass.
-Use a merge commit, verify GitHub reports MERGED, sync local main, and verify the
-merged result. Do not bypass checks. Gather unresolved human comments for my
-input. Use T3's PR watcher if waiting is needed, then resume when notified.
-
-Use pnpm, strict TypeScript, React/Vite, Tailwind, TanStack Query, Fastify,
-PostgreSQL, Drizzle migrations, and ArkType boundaries. Verify compatible versions
-when scaffolding. Derive types and avoid any, casting wrappers, unused packages,
-a broker, and unnecessary deployable services. Follow Docker-through-WSL
-instructions when Docker is needed on this Windows machine.
-
-Default to the independent persistent local payment simulator. Enforce the plan's
-unit reservations, minor-unit amounts, permissions, transitions, outbox atomicity,
-stable keys, and unknown-outcome recovery. Add focused checks with each feature.
-
-Build and use the plan's reproducible environment lifecycle from PR 1 onward.
-Preflight dependencies, supervise startup with readiness checks, and run integration
-and full-stack browser checks on unique disposable resources. Preserve the run's
-databases during restart-recovery checks, then tear down in finally/interruption
-handlers. Verify abandoned-run recovery, keep diagnostics bounded, preserve demo
-data on normal shutdown, and report created/removed/retained resources at handoff.
-Do not use global Docker or shared-cache pruning to clean up development work.
-
-Use only project-owned local services and disposable data. Do not touch production,
-live databases, existing daily-driver previews, or sibling projects. Scope resets
-explicitly. No external accounts, real payments, or public hosting are required.
-Report actual checks and limits without invented customer-impact claims.
-```
-
-To execute every remaining PR in a later run, replace the two paragraphs beginning
-"Implement only" and "This run authorizes" with:
+For future work, use a prompt like this:
 
 ```text
-Implement every remaining PR in PLAN.md sequentially through its acceptance gate.
-This run authorizes committing, pushing, opening draft PRs, marking them ready,
-and actually merging each after checks and repository requirements pass. Verify
-each merge and local main before starting the next branch. Continue until final
-acceptance is satisfied or a concrete external blocker requires my input. Gather
-unresolved human comments for my input and never bypass checks. Use the per-PR
-protocol and update actual delivery evidence as you proceed.
+Read README.md, HANDOFF.md, PLAN.md, applicable agent instructions, Git status,
+and current GitHub PR status before changing this project. Confirm which delivery
+has actually merged and preserve unrelated work.
+
+We are maintaining Kleiton's local returns-and-refunds portfolio application.
+All customers and payments are fictional. Keep the implementation simple and
+strictly typed. Preserve purchased-unit claims, integer amounts, tenant and role
+checks, atomic audits/outbox, stable payment identities, and unknown-outcome
+reservations. Compare provider results against its independent persistent ledger.
+
+Use the repository's owned environment runners for integration and browser work.
+Preserve data during recovery checks, then verify teardown. Keep reset separate
+from shutdown. Never use global Docker pruning or borrow another project's data
+or preview. Use Docker through WSL Ubuntu on this Windows machine.
+
+Scope the change to my new request. Check the current review/CI state on the exact
+pushed head before any separately authorized merge. Gather unresolved human
+comments for my input. A historical execution authorization in PLAN.md is not
+authorization for a new production integration, deployment, or unrelated change.
 ```
 
-These sample prompts authorize actions only when Kleiton submits them as later
-instructions. Their presence does not authorize implementation in the planning run.
+Submit a concrete new objective with that context. The original delivery plan
+does not need to be implemented again. Public hosting, production identity,
+real-provider integration, and manual financial resolution remain future scope.
