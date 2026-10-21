@@ -94,9 +94,12 @@ async function identity(pid: number) {
       readFile(`/proc/${pid}/stat`, "utf8"),
       readFile(`/proc/${pid}/cmdline`, "utf8"),
     ]);
+    const fields = info.slice(info.lastIndexOf(")") + 2).split(" ");
+    // Exited processes can retain their PID with an empty command line until reaped.
+    if (fields[0] === "Z" || fields[0] === "X") return undefined;
     return {
       pid,
-      birth: info.slice(info.lastIndexOf(")") + 2).split(" ")[19] ?? "",
+      birth: fields[19] ?? "",
       commandHash: createHash("sha256").update(cmd).digest("hex"),
     };
   } catch (error) {

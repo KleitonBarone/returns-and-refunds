@@ -758,6 +758,14 @@ The task tab closed; development shutdown verified removal of services, worker,
 containers, and network. Only the two project demo volumes remain. Disposable
 test resources were removed. Remote PR/merge evidence follows in the next update.
 
+[GitHub PR #7](https://github.com/KleitonBarone/returns-and-refunds/pull/7) includes
+`42d6699`, `5ccfd73`, and `a379f89`. Its first CI run passed the application and
+integration checks but exposed a Linux lifecycle issue after the worker crash.
+The exited worker remained as a zombie PID with an empty command line, which
+restart mistook for a changed live process. A disposable Linux reproduction
+confirmed the cause. Process identity now recognizes zombie/dead states as
+exited while preserving start-time and command-hash checks for live processes.
+
 ## Final acceptance
 
 - [ ] All planned capabilities exist on remote main and all delivery PRs are
