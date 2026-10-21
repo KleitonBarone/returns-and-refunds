@@ -399,6 +399,7 @@ describe("durable refund processing", () => {
       release = accept;
     });
     const pending = run(stored.id, undefined, {
+      ...provider,
       submit: async (payload) => {
         const result = await provider.submit(payload);
         entered();
@@ -430,6 +431,7 @@ describe("durable refund processing", () => {
     await submit(request);
     const stored = await operation(request);
     const mismatched: PaymentProvider = {
+      ...provider,
       submit: async (payload) => {
         const result = await provider.submit(payload);
         return result.kind === "receipt"

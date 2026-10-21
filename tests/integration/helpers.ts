@@ -5,12 +5,12 @@ import { connectDatabase } from "../../apps/server/src/db.ts";
 import { allocateMinor } from "../../apps/server/src/domain.ts";
 import { orderLines, orders, orderUnits } from "../../apps/server/src/schema.ts";
 
-export async function testContext() {
+export async function testContext(services?: Parameters<typeof createApp>[2]) {
   const config = readConfig();
   if (!config.runId.startsWith("codex-returns-test-"))
     throw new Error("Integration tests require an isolated test run");
   const { db, pool } = connectDatabase(config.databaseUrl);
-  const app = await createApp(db, config);
+  const app = await createApp(db, config, services);
   async function login(personaId: string) {
     const response = await app.inject({
       method: "POST",

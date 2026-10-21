@@ -11,7 +11,14 @@ export type SubmissionOutcome =
   | { kind: "receipt"; receipt: ProviderReceipt }
   | { kind: "retryable"; message: string }
   | { kind: "unknown"; message: string };
-export type PaymentProvider = { submit: (payload: RefundPayload) => Promise<SubmissionOutcome> };
+export type LookupOutcome =
+  | { kind: "receipt"; receipt: ProviderReceipt }
+  | { kind: "not_found" }
+  | { kind: "unavailable"; message: string };
+export type PaymentProvider = {
+  submit: (payload: RefundPayload) => Promise<SubmissionOutcome>;
+  lookup: (payload: RefundPayload) => Promise<LookupOutcome>;
+};
 const providerConfig = type({
   url: "string.url",
   token: "string >= 32",
@@ -56,6 +63,28 @@ export function receiptMatches(payload: RefundPayload, receipt: ProviderReceipt)
 }
 export function createPaymentProvider(config = readProviderConfig()): PaymentProvider {
   return {
+    lookup: async (payload) => {
+      try {
+        const response = await fetch(
+          `${config.url}/v1/merchants/${encodeURIComponent(payload.merchantId)}/refunds/${encodeURIComponent(payload.idempotencyKey)}`,
+          {
+            headers: { authorization: `Bearer ${config.token}` },
+            signal: AbortSignal.timeout(config.timeoutMs),
+            redirect: "error",
+          },
+        );
+        if (response.status === 404) return { kind: "not_found" };
+        const receipt = providerReceipt(await response.json());
+        if (response.ok && !(receipt instanceof type.errors) && receiptMatches(payload, receipt))
+          return { kind: "receipt", receipt };
+      } catch {
+        // An unavailable lookup cannot establish whether a financial write occurred.
+      }
+      return {
+        kind: "unavailable",
+        message: "The payment status could not be verified. The original refund remains reserved.",
+      };
+    },
     submit: async (payload) => {
       try {
         const { merchantId, ...body } = payload;
