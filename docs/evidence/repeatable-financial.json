@@ -1,0 +1,176 @@
+{
+  "runId": "codex-returns-test-5c7d8cb2-8b7f-44a7-927e-4bf0b417aa19",
+  "source": "28f128f8655017eef6982cb48b846c6d3e125d73",
+  "versions": {
+    "node": "24.20.0",
+    "pnpm": "pnpm/11.23.0",
+    "docker": "29.8.0",
+    "compose": "5.5.1",
+    "postgres": "18.1-alpine"
+  },
+  "cycles": [
+    {
+      "evidence": {
+        "clock": "2026-10-01T12:00:00.000Z",
+        "refunds": [
+          {
+            "scenario": "normal",
+            "returnId": "7d8cb402-ddb6-4ac6-a0b1-bfe086b981f3",
+            "operationId": "25e49d19-f8f7-4803-bc44-39288dd95ab0",
+            "providerId": "16b4af26-bdf7-4848-9554-fd6c0a68b527",
+            "appStatus": "succeeded",
+            "appAmountMinor": 3500,
+            "currency": "USD",
+            "ledgerEntries": 1,
+            "ledgerAmountMinor": 3500,
+            "attempts": ["succeeded"]
+          },
+          {
+            "scenario": "retryable",
+            "returnId": "1771b145-9a46-46f9-adb9-c0012e6f1018",
+            "operationId": "4ef116ba-4790-4d51-9cf1-5a4e6d9a8ee5",
+            "providerId": "497bc20a-4420-448b-8c8b-824cfaeb57ea",
+            "appStatus": "succeeded",
+            "appAmountMinor": 3500,
+            "currency": "USD",
+            "ledgerEntries": 1,
+            "ledgerAmountMinor": 3500,
+            "attempts": ["retryable", "succeeded"]
+          },
+          {
+            "scenario": "unknown",
+            "returnId": "f1d90747-852a-4a31-9683-4e7277b87367",
+            "operationId": "6254efb5-abbc-4be4-8662-66b961eba9e6",
+            "providerId": "da8012e3-5289-43c3-89ad-0bd264b74a31",
+            "appStatus": "unknown",
+            "appAmountMinor": 3500,
+            "currency": "USD",
+            "ledgerEntries": 1,
+            "ledgerAmountMinor": 3500,
+            "attempts": ["unknown"]
+          }
+        ],
+        "inspection": {
+          "returnId": "e178c3ed-3a9e-4240-8501-87fb69cdf49a",
+          "status": "closed",
+          "closureReason": "inspection_failed",
+          "refund": null
+        },
+        "expiredHttpStatus": 422,
+        "consumedUnitHttpStatus": 409,
+        "remainingNormalUnits": 1,
+        "releasedInspectionUnits": 2,
+        "otherMerchant": {
+          "returnId": "5743dc00-72d0-466b-8b32-902d70f55d35",
+          "status": "requested",
+          "crossMerchantHttpStatus": 404
+        },
+        "ledgerEntries": 3,
+        "ledgerAmountMinor": 10500,
+        "confirmedAppAmountMinor": 7000,
+        "unknownReservedMinor": 3500
+      },
+      "recovery": {
+        "returnId": "f1d90747-852a-4a31-9683-4e7277b87367",
+        "operationId": "6254efb5-abbc-4be4-8662-66b961eba9e6",
+        "providerId": "da8012e3-5289-43c3-89ad-0bd264b74a31",
+        "status": "succeeded",
+        "event": {
+          "eventId": "ba3c1704-aed7-435c-9bde-2a505ee496e0"
+        },
+        "deliveryStatuses": [200, 200, 200],
+        "receiptOutcomes": ["ignored"],
+        "successAuditEntries": 1,
+        "submissionAttempts": 1,
+        "ledgerPreserved": true,
+        "confirmedAppAmountMinor": 10500
+      }
+    },
+    {
+      "evidence": {
+        "clock": "2026-10-01T12:00:00.000Z",
+        "refunds": [
+          {
+            "scenario": "normal",
+            "returnId": "d217d7d8-3458-47ae-87fd-db6011858232",
+            "operationId": "274642dc-4afd-4701-90cd-98ba12bb6710",
+            "providerId": "93bb3b94-905e-4466-aab6-693f25f75bcb",
+            "appStatus": "succeeded",
+            "appAmountMinor": 3500,
+            "currency": "USD",
+            "ledgerEntries": 1,
+            "ledgerAmountMinor": 3500,
+            "attempts": ["succeeded"]
+          },
+          {
+            "scenario": "retryable",
+            "returnId": "9edd6aa5-dfcb-4c4c-b29f-87ec6c490681",
+            "operationId": "3cc956cb-b5c8-4567-87d8-4bf8796d1cd8",
+            "providerId": "9ef9f794-d44f-4101-a5d3-252836ea0d20",
+            "appStatus": "succeeded",
+            "appAmountMinor": 3500,
+            "currency": "USD",
+            "ledgerEntries": 1,
+            "ledgerAmountMinor": 3500,
+            "attempts": ["retryable", "succeeded"]
+          },
+          {
+            "scenario": "unknown",
+            "returnId": "d485b931-a6dc-477b-ac80-a42dd6d02ea0",
+            "operationId": "80c7c157-eaa9-4b3e-954c-54003f521a37",
+            "providerId": "7c881c80-80ed-4864-8080-cab9d3d42a10",
+            "appStatus": "unknown",
+            "appAmountMinor": 3500,
+            "currency": "USD",
+            "ledgerEntries": 1,
+            "ledgerAmountMinor": 3500,
+            "attempts": ["unknown"]
+          }
+        ],
+        "inspection": {
+          "returnId": "af67c944-c567-4b42-84a1-0097bce5a312",
+          "status": "closed",
+          "closureReason": "inspection_failed",
+          "refund": null
+        },
+        "expiredHttpStatus": 422,
+        "consumedUnitHttpStatus": 409,
+        "remainingNormalUnits": 1,
+        "releasedInspectionUnits": 2,
+        "otherMerchant": {
+          "returnId": "d545a1ed-5f76-4e51-87e1-2ac3dfa7dc3a",
+          "status": "requested",
+          "crossMerchantHttpStatus": 404
+        },
+        "ledgerEntries": 3,
+        "ledgerAmountMinor": 10500,
+        "confirmedAppAmountMinor": 7000,
+        "unknownReservedMinor": 3500
+      },
+      "recovery": {
+        "returnId": "d485b931-a6dc-477b-ac80-a42dd6d02ea0",
+        "operationId": "80c7c157-eaa9-4b3e-954c-54003f521a37",
+        "providerId": "7c881c80-80ed-4864-8080-cab9d3d42a10",
+        "status": "succeeded",
+        "event": {
+          "eventId": "a310284e-be57-40b0-93b1-dda83c84ce63"
+        },
+        "deliveryStatuses": [200, 200, 200],
+        "receiptOutcomes": ["ignored"],
+        "successAuditEntries": 1,
+        "submissionAttempts": 1,
+        "ledgerPreserved": true,
+        "confirmedAppAmountMinor": 10500
+      }
+    }
+  ],
+  "equivalentFinancialAssertions": true,
+  "resetRefusalsPreservedAllRows": [
+    "environment_identity/returns-demo",
+    "environment_identity/returns-disposable-demo",
+    "simulator_identity/payment-simulator",
+    "simulator_identity/payment-disposable-demo"
+  ],
+  "mismatchedAddressRefused": true,
+  "partialCommitFailedStopped": true
+}

@@ -88,6 +88,8 @@ an interactive session. Both commands run the normal owned-resource cleanup.
 Stop an interactive run with Ctrl+C. This removes its processes, containers,
 network, databases, and run directory. It preserves the existing PostgreSQL image
 and the original development data. It never performs global Docker pruning.
+If a reset is in progress, shutdown lets that command settle before taking the
+cleanup snapshot. It accepts no further reset commands while stopping.
 
 The latest credential-free summaries replace `.local/demo-last-run.json` and
 `.local/demo-last-verification.json`. Each stores only one bounded scenario run,
