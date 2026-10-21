@@ -10,6 +10,22 @@ export const healthResponse = type({
 export const DEMO_NOW = "2026-10-01T12:00:00.000Z";
 
 export const roles = ["customer", "support", "warehouse", "finance"] as const;
+export const refundStates = ["pending", "processing", "succeeded", "failed", "unknown"] as const;
+export const refundInput = type({
+  expectedAmountMinor: "0 < number.integer <= 2147483647",
+  reason: "3 <= string <= 500",
+  correlationId: "string.uuid",
+}).onDeepUndeclaredKey("reject");
+export const refundViewContract = type({
+  id: "string.uuid",
+  status: type.enumerated(...refundStates),
+  amountMinor: "number.integer",
+  currency: "string",
+  requestedAt: "string",
+  updatedAt: "string",
+  message: "string | null",
+  providerReceiptId: "string | null",
+});
 export const returnStates = [
   "requested",
   "approved",
@@ -114,6 +130,7 @@ export const returnSummaryContract = type({
   reason: "string",
   status: type.enumerated(...returnStates),
   closureReason: "string | null",
+  refundStatus: type.enumerated(...refundStates).or("null"),
   amountMinor: "number",
   currency: "string",
   requestedAt: "string",
@@ -122,6 +139,7 @@ export const returnSummaryContract = type({
 });
 export const returnsContract = returnSummaryContract.array();
 export const returnDetailContract = returnSummaryContract.and({
+  refund: refundViewContract.or("null"),
   items: type({
     unitId: "string",
     name: "string",
@@ -137,6 +155,9 @@ export const returnDetailContract = returnSummaryContract.and({
     fromStatus: "string | null",
     toStatus: "string",
     correlationId: "string",
+    operationId: "string | null",
+    refundFromStatus: "string | null",
+    refundToStatus: "string | null",
   }).array(),
   reviews: type({
     kind: "'decision' | 'inspection'",

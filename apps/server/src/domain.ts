@@ -6,6 +6,7 @@ export class HttpError extends Error {
     super(message);
   }
 }
+export const REFUND_PROCESSOR = { id: "system-refunds", name: "Refund processor" } as const;
 
 export function eligibility(deliveredAt: string, now: string) {
   const delivery = Date.parse(deliveredAt);

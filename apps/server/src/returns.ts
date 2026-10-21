@@ -9,6 +9,8 @@ import {
   orderLines,
   orders,
   orderUnits,
+  refundOperations,
+  refundReceipts,
   returnRequests,
   returnReviews,
   returnUnits,
@@ -72,6 +74,7 @@ const summaryFields = {
   reason: returnRequests.reason,
   status: returnRequests.status,
   closureReason: returnRequests.closureReason,
+  refundStatus: refundOperations.status,
   amountMinor: returnRequests.amountMinor,
   currency: returnRequests.currency,
   requestedAt: returnRequests.requestedAt,
@@ -88,6 +91,7 @@ export async function listReturns(db: Database, actor: Actor) {
   return db
     .select(summaryFields)
     .from(returnRequests)
+    .leftJoin(refundOperations, eq(refundOperations.returnId, returnRequests.id))
     .innerJoin(orders, eq(orders.id, returnRequests.orderId))
     .innerJoin(customers, eq(customers.id, returnRequests.customerId))
     .innerJoin(users, eq(users.id, customers.userId))
@@ -98,6 +102,7 @@ export async function returnDetail(db: Database, actor: Actor, id: string) {
   const [summary] = await db
     .select(summaryFields)
     .from(returnRequests)
+    .leftJoin(refundOperations, eq(refundOperations.returnId, returnRequests.id))
     .innerJoin(orders, eq(orders.id, returnRequests.orderId))
     .innerJoin(customers, eq(customers.id, returnRequests.customerId))
     .innerJoin(users, eq(users.id, customers.userId))
@@ -124,6 +129,9 @@ export async function returnDetail(db: Database, actor: Actor, id: string) {
       fromStatus: auditEntries.fromStatus,
       toStatus: auditEntries.toStatus,
       correlationId: auditEntries.correlationId,
+      operationId: auditEntries.operationId,
+      refundFromStatus: auditEntries.refundFromStatus,
+      refundToStatus: auditEntries.refundToStatus,
     })
     .from(auditEntries)
     .innerJoin(users, eq(users.id, auditEntries.actorId))
@@ -140,7 +148,21 @@ export async function returnDetail(db: Database, actor: Actor, id: string) {
     .from(returnReviews)
     .innerJoin(users, eq(users.id, returnReviews.actorId))
     .where(eq(returnReviews.returnId, id));
-  return { ...summary, items, history, reviews };
+  const [refund] = await db
+    .select({
+      id: refundOperations.id,
+      status: refundOperations.status,
+      amountMinor: refundOperations.amountMinor,
+      currency: refundOperations.currency,
+      requestedAt: refundOperations.requestedAt,
+      updatedAt: refundOperations.updatedAt,
+      message: refundOperations.lastError,
+      providerReceiptId: refundReceipts.providerId,
+    })
+    .from(refundOperations)
+    .leftJoin(refundReceipts, eq(refundReceipts.operationId, refundOperations.id))
+    .where(eq(refundOperations.returnId, id));
+  return { ...summary, items, history, reviews, refund: refund ?? null };
 }
 export async function requestReturn(
   db: Database,

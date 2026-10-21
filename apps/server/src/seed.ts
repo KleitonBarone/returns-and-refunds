@@ -1,6 +1,6 @@
 import { DEMO_NOW } from "../../../packages/contracts/src/index.ts";
 import type { Database } from "./db.ts";
-import { allocateMinor } from "./domain.ts";
+import { allocateMinor, REFUND_PROCESSOR } from "./domain.ts";
 import {
   customers,
   environmentIdentity,
@@ -37,7 +37,7 @@ export async function seed(db: Database, runId: string, disposable: boolean) {
       .onConflictDoNothing();
     await tx
       .insert(users)
-      .values(personas.map((p) => ({ id: p.id, name: p.name })))
+      .values([...personas.map((p) => ({ id: p.id, name: p.name })), REFUND_PROCESSOR])
       .onConflictDoNothing();
     await tx
       .insert(memberships)

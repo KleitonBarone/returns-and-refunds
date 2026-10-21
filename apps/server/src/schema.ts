@@ -3,7 +3,9 @@ import {
   boolean,
   check,
   foreignKey,
+  index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -13,7 +15,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { returnStates, roles } from "../../../packages/contracts/src/index.ts";
+import { refundStates, returnStates, roles } from "../../../packages/contracts/src/index.ts";
+import type { ProviderReceipt } from "../../../packages/contracts/src/payment.ts";
 
 export const environmentIdentity = pgTable("environment_identity", {
   id: text().primaryKey(),
@@ -164,10 +167,94 @@ export const returnUnits = pgTable(
     uniqueIndex("one_active_claim_per_unit").on(t.unitId).where(sql`${t.active} = true`),
   ],
 );
+export const refundState = pgEnum("refund_state", refundStates);
+export const refundOperations = pgTable(
+  "refund_operations",
+  {
+    id: uuid().primaryKey(),
+    returnId: text()
+      .notNull()
+      .unique()
+      .references(() => returnRequests.id),
+    orderId: text()
+      .notNull()
+      .references(() => orders.id),
+    merchantId: text()
+      .notNull()
+      .references(() => merchants.id),
+    createdBy: text()
+      .notNull()
+      .references(() => users.id),
+    correlationId: uuid().notNull(),
+    paymentRef: text().notNull(),
+    idempotencyKey: text().notNull().unique(),
+    fingerprint: text().notNull(),
+    amountMinor: integer().notNull(),
+    currency: text().notNull(),
+    status: refundState().notNull().default("pending"),
+    lastError: text(),
+    requestedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    updatedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+  },
+  (t) => [check("positive_refund_operation", sql`${t.amountMinor} > 0`)],
+);
+export const refundReceipts = pgTable("refund_receipts", {
+  operationId: uuid()
+    .primaryKey()
+    .references(() => refundOperations.id),
+  providerId: uuid().notNull().unique(),
+  receipt: jsonb().$type<ProviderReceipt>().notNull(),
+  observedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+});
+export const refundJobs = pgTable(
+  "refund_jobs",
+  {
+    operationId: uuid()
+      .primaryKey()
+      .references(() => refundOperations.id),
+    runAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+    leaseToken: uuid(),
+    leaseUntil: timestamp({ withTimezone: true, mode: "string" }),
+    attempts: integer().notNull().default(0),
+    completedAt: timestamp({ withTimezone: true, mode: "string" }),
+  },
+  (t) => [index("due_refund_jobs").on(t.runAt).where(sql`${t.completedAt} is null`)],
+);
+export const refundAttempts = pgTable("refund_attempts", {
+  id: uuid().primaryKey(),
+  operationId: uuid()
+    .notNull()
+    .references(() => refundOperations.id),
+  leaseToken: uuid().notNull().unique(),
+  startedAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+  finishedAt: timestamp({ withTimezone: true, mode: "string" }),
+  outcome: text({
+    enum: [
+      "started",
+      "abandoned",
+      "fenced",
+      "retryable",
+      "unknown",
+      "processing",
+      "succeeded",
+      "failed",
+    ],
+  }).notNull(),
+  message: text(),
+});
+export const workerHeartbeat = pgTable("worker_heartbeat", {
+  id: text().primaryKey(),
+  runId: text().notNull(),
+  pid: integer().notNull(),
+  lastSeenAt: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+});
 export const auditEntries = pgTable("audit_entries", {
   id: text().primaryKey(),
   sequence: integer().generatedAlwaysAsIdentity(),
   correlationId: uuid().notNull().defaultRandom(),
+  operationId: uuid().references(() => refundOperations.id),
+  refundFromStatus: refundState(),
+  refundToStatus: refundState(),
   returnId: text()
     .notNull()
     .references(() => returnRequests.id),
