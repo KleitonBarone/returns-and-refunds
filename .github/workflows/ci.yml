@@ -27,6 +27,7 @@ jobs:
       - run: pnpm test:environment
       - run: pnpm test:e2e
       - run: pnpm test:e2e:environment
+      - run: pnpm demo:verify
       - name: Release disposable environments
         if: always()
         run: pnpm env:clean --all --apply

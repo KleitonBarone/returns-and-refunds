@@ -14,7 +14,8 @@ and merge timestamps as work finishes, never invent them.
 
 Execution is now authorized through the complete remaining plan, including
 commits, pushes, draft PRs, checks, and actual merges. Implementation deliveries 1
-through 3 are merged. Delivery 4 has local simulator code and verification.
+through 7 are merged. Delivery 8 adds repeatable scenarios and a guarded reset;
+delivery 9 remains the final portfolio handoff and clean-checkout verification.
 
 Build a local portfolio application for Kleiton, a senior engineer in Brazil
 targeting international remote roles. Recruiters should recognize the commerce
@@ -606,7 +607,7 @@ commit `7b2fa99`, merged as `2992d18` after documentation checks.
 GitHub's merged PR record is authoritative; this file cannot contain its own
 future merge SHA.
 
-Delivery 6 is in progress; deliveries 7-9 have not started. During each delivery PR, add its URL, branch, included
+Deliveries 1-7 are merged; delivery 8 is in progress and delivery 9 follows. During each delivery PR, add its URL, branch, included
 commits, and actual checks here. Include
 prior merge metadata in the next log update. Do not create another PR merely to
 record this documentation PR's merge SHA.
@@ -889,6 +890,56 @@ and interruption verification passed. Windows storage/interruption checks also
 passed. Temporary Linux tools, dependencies, browser cache, and source checkout
 were removed after verified teardown. Type/lint/format checks pass. Updated CI
 and merge evidence follow after the fix push.
+
+GitHub PR #9 passed its complete check on `39aa84c`, including the Linux browser
+and cleanup checks, without reviews or inline findings. It merged at
+`2026-10-21T18:56:08Z` as `7aae390e0db5a6c204384990d074441ffeaa8918`.
+Local main was fast-forwarded and the merge was verified in `origin/main` before
+starting `feat/repeatable-demo`. The watcher was stopped after merge.
+
+### Implementation delivery 8. Repeatable scenarios and guarded reset
+
+Branch `feat/repeatable-demo` adds `demo:run`, `demo:verify`, and `demo:reset`.
+[GitHub PR #10](https://github.com/KleitonBarone/returns-and-refunds/pull/10)
+is the draft delivery PR. Its CI and merge status will be checked on the final
+pushed head; no merge is claimed here.
+Commit `28f128f` contains the deterministic scenarios, additional demo-only
+database markers, paired reset, command interface, refusal/partial-commit checks,
+guide, and CI gate. Fresh startup exposed an initialization-socket readiness race;
+both PostgreSQL probes now require TCP. Repeated Windows restarts exposed reused
+PIDs in child history; service helpers use the latest identity and clear stopped
+service pointers while retaining ownership checks.
+
+Commit `0860c70` makes a stop wait for an active demo reset before cleanup takes
+its child-process snapshot. This extra fix commit prevents scenario seeding from
+launching services after cleanup has already started.
+
+The committed-source verification run
+`codex-returns-test-5c7d8cb2-8b7f-44a7-927e-4bf0b417aa19` passed two equivalent
+reset/seed/demo cycles. Each had three independent 3500 USD ledger entries, 7000
+confirmed in the app and 3500 retained as unknown. Actual API, worker, and
+simulator restarts recovered the same operation without altering any ledger row.
+Three signed processing-event copies returned 200, produced one ignored receipt,
+and left one business success audit. Inspection failure released units, consumed
+units could not be returned again, expiry returned 422, and merchant isolation
+returned 404. Four marker/pairing refusals preserved every row. A failure injected
+between commits preserved the provider ledger and left a failed journal and
+stopped services. Final teardown retained no disposable resources.
+
+Local type/lint/format checks, four unit checks, 59 integration checks, production
+build, full service lifecycle verification, both browser journeys, and browser
+failure/ownership/interruption cleanup passed. The browser journeys took 19.4
+seconds, excluding setup/teardown; retained expected-failure diagnostics totaled
+62187 bytes. See [scenario verification](docs/evidence/repeatable-verification.md)
+and [financial evidence](docs/evidence/repeatable-financial.json).
+
+The active-reset shutdown check on source `0860c70` observed phase `resetting`
+before the reset command had produced a result. A stop request waited for that
+command to succeed, then removed the environment. Both processes exited zero;
+verified cleanup at `2026-10-21T19:15:28.472Z` retained no disposable resources.
+The [shutdown record](docs/evidence/demo-shutdown.json) preserves that result.
+No workspace-owned container or network remained; only the two original retained
+development volumes remained. Existing PostgreSQL and browser caches were reused.
 
 ## Final acceptance
 

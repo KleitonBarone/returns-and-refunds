@@ -14,8 +14,8 @@ Rejected requests and failed inspections release their reserved units atomically
 Finance confirms the amount; a durable worker processes the original operation.
 Unknown outcomes keep their amount and items reserved. Finance can check their
 original payment status; signed events confirm results without duplicating funds.
-Interface refinement and repeatable demonstration tooling follow in the remaining
-[delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
+The interface and repeatable demo are implemented; the portfolio handoff follows
+in the remaining [delivery plan](PLAN.md). The [thread starter](THREAD_START.md) explains resuming
 from the next incomplete delivery PR.
 
 The [persistent payment simulator](docs/payment-simulator.md) is available as a
@@ -94,6 +94,16 @@ unknown state before checking it in finance. Restore normal behavior with
 `pnpm simulator:control payment-order-1042 success` afterward.
 
 ## Verify and clean up
+
+For fresh, already populated scenarios, run `pnpm demo:run` and open its printed
+URL. It uses separate disposable databases and assigned ports. Finance can recover
+`DEMO-UNKNOWN`, while customer and operator views include normal, expired,
+inspection-failure, retryable, previously returned, and second-merchant cases.
+`pnpm demo:reset <printed-run-id>` resets only that live disposable demo pair.
+`pnpm demo:verify` checks two equivalent cycles, restart recovery without clearing
+the ledger, and reset refusals. `pnpm demo:run --once` seeds, verifies, and exits.
+Ctrl+C removes an interactive demo's disposable data. See the
+[scenario and reset guide](docs/repeatable-demo.md) for exact assertions and limits.
 
 ```sh
 pnpm check
