@@ -1,0 +1,47 @@
+{
+  "readingTimeSeconds": 90.086,
+  "captions": [
+    {
+      "seconds": 0,
+      "text": "Northline Supply: a fictional merchant with a real return workflow.\nFollow one partial return from customer request to refund recovery."
+    },
+    {
+      "seconds": 6.481,
+      "text": "Maya returns one tee from a three-unit order.\nThe server calculates the partial refund: $35.00."
+    },
+    {
+      "seconds": 12.821,
+      "text": "The request reserves only the selected unit.\nSupport can review the policy snapshot and the customer's reason."
+    },
+    {
+      "seconds": 19.282,
+      "text": "Ava approves the eligible partial return with a reason.\nThe recorded decision identifies who acted and why."
+    },
+    {
+      "seconds": 25.758,
+      "text": "Jules records receipt and passes inspection.\nFinance can now review the reserved refund amount."
+    },
+    {
+      "seconds": 32.294,
+      "text": "Sam reviews and confirms the exact $35.00 amount.\nA durable operation keeps its original payment key across attempts."
+    },
+    {
+      "seconds": 39.848,
+      "text": "The payment simulator stored success, but its response was lost.\nThe app keeps the outcome unknown and the amount reserved."
+    },
+    {
+      "seconds": 52.102,
+      "text": "The API, worker, and payment simulator have actually restarted.\nTheir databases and the original refund operation are preserved."
+    },
+    {
+      "seconds": 58.631,
+      "text": "Recovery confirmed the original refund. Independent ledger: one $35.00 entry.\nThree signed late-event copies left one success audit and no duplicate refund."
+    },
+    {
+      "seconds": 65.397,
+      "text": "Two tees remain available. Every decision and refund keeps its history.\nLocal simulation only. No real payments; personas are demo authentication."
+    }
+  ],
+  "narration": "English captions; no spoken audio",
+  "annotations": "Caption banner added by recording test only"
+}
