@@ -6,10 +6,10 @@ and finance confirms the refund. The interesting case is a successful payment
 whose response disappears: the app must recover the original refund without
 issuing another one.
 
-[Watch the captioned walkthrough](https://github.com/KleitonBarone/returns-and-refunds/releases/tag/portfolio-walkthrough-2026-10-21)
+[Follow the screenshot walkthrough](docs/walkthrough.md)
 or [read the recovery case study](docs/case-study.md).
 
-![A confirmed partial refund and its recorded history](docs/evidence/screenshots/refund-recovered.jpg)
+![Finance confirms the original partial refund after recovery](docs/evidence/screenshots/05-refund-recovered.png)
 
 ## Try it locally
 
@@ -80,7 +80,7 @@ until authoritative lookup resolves the original key.
 
 See the [architecture](docs/architecture.md), [refund processing](docs/refund-processing.md),
 [recovery contract](docs/refund-recovery.md), and [simulator limits](docs/payment-simulator.md).
-The [handoff](HANDOFF.md) covers recording, clean-checkout verification, environment
+The [handoff](HANDOFF.md) covers screenshot capture, clean-checkout verification, environment
 recovery, and retained disk usage.
 
 This is portfolio software with local persona sessions. It has no production

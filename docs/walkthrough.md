@@ -1,32 +1,79 @@
-# Captioned workflow walkthrough
+# A partial return, step by step
 
-The [video release](https://github.com/KleitonBarone/returns-and-refunds/releases/tag/portfolio-walkthrough-2026-10-21)
-contains a locally recorded 91.04-second English-captioned demonstration. There is no spoken
-narration. The recording drives the actual UI and real local services. Captions
-are test-only annotations; financial results come from independent assertions.
+Follow one $35 tee from Maya's order through support, warehouse inspection, and
+refund recovery. Each screenshot shows the real local application. All people,
+orders, and payments are fictional.
 
-The sequence introduces the fictional merchant, requests one tee from a three-unit
-order, records support approval and warehouse receipt/inspection, and confirms
-$35 in finance. The provider stores success and loses its response. Services
-restart while data remains intact. A lookup recovers the original operation,
-then three signed late processing-event copies preserve one ledger refund and
-one success audit. Customer history shows the confirmed refund and two remaining
-tees. The closing caption states the local simulation and demo-authentication
-limits.
+## 1. Maya requests one item
 
-Reproduce it with `pnpm demo:record` after `pnpm browser:install`. See the
-[handoff](../HANDOFF.md) for retention, conversion, and cleanup. The recording's
-caption transcript, financial record, source, media hash, duration, and inspected
-frames are recorded with the final delivery evidence. Its application source
-matches merged commit `ba33d5732e7d10dca4d0ffba6660a15b42a20e35`; this delivery
-adds the recording instrumentation and documentation.
+Maya returns one tee from a three-tee order. The server calculates $35 and reserves
+only that unit while support reviews the request.
 
-The [MP4](https://github.com/KleitonBarone/returns-and-refunds/releases/download/portfolio-walkthrough-2026-10-21/returns-and-refunds.mp4)
-is 1686867 bytes. Its anonymous download matched SHA-256
-`547aa27ae87bd9bd8290d33bead67a136d6f0ffc36f6ddfff2287808441c5142`.
-Frames at 8, 35, 55, 75, and 89 seconds were inspected for UI and caption readability.
-The final capture came from run `codex-returns-test-67829ae2-efb3-4141-b6c7-d69377245a6b`;
-all disposable resources were removed at `2026-10-21T19:31:18.310Z`.
-The [media metadata](evidence/walkthrough-media.json),
-[caption transcript](evidence/walkthrough-captions.json), and
-[financial assertions](evidence/walkthrough-financial.json) preserve the observations.
+![Maya's partial return request for one $35 tee](evidence/screenshots/01-customer-request.png)
+
+## 2. Ava approves the return
+
+Support checks eligibility and records a reason. The return now waits for the
+warehouse to receive the parcel.
+
+![Ava's approved return and decision history](evidence/screenshots/02-support-approved.png)
+
+## 3. Jules receives and inspects the tee
+
+The warehouse records receipt and passing inspection separately. The accepted
+item is ready for finance to review its refund.
+
+![Passing warehouse inspection with the recorded decisions](evidence/screenshots/03-warehouse-inspected.png)
+
+## 4. Sam sees an uncertain payment
+
+Finance confirms $35. The simulator stores success but drops its HTTP response.
+The app shows **Outcome unknown** and keeps the original operation and amount
+reserved. A timeout cannot establish whether money was refunded.
+
+![Finance's unknown outcome and original refund operation](evidence/screenshots/04-refund-unknown.png)
+
+## 5. Sam checks the original payment
+
+After the actual API, worker, and simulator restart, finance checks the original
+key with a recovery reason. **Confirmed** refers to the same refund. Independent
+assertions verify one $35 ledger entry and one success audit after three signed
+copies of a late processing event.
+
+![The confirmed original refund after service restarts](evidence/screenshots/05-refund-recovered.png)
+
+## 6. Maya sees the result
+
+Customer history includes the confirmed refund and recovery explanation. The
+journey also checks that two of the three tees remain available for another return.
+
+![Maya's confirmed refund and recovery history](evidence/screenshots/06-customer-history.png)
+
+## Narrow layouts and errors
+
+At 390 pixels, the detail panel replaces the queue and its back button restores
+focus. The expired order disables return controls and explains the 30-day window.
+An actual API outage shows a retry action; restarting the API restores the queue.
+
+<details>
+<summary>See the narrow-layout screenshots</summary>
+
+![Confirmed customer history on a narrow screen](evidence/screenshots/07-customer-narrow.png)
+
+![An expired order with disabled return controls](evidence/screenshots/08-expired-narrow.png)
+
+![Service outage with a retry action](evidence/screenshots/09-service-unavailable-narrow.png)
+
+</details>
+
+## Reproduce and inspect
+
+Run `pnpm browser:install`, then `pnpm test:e2e`. Both journeys use fresh paired
+databases and the real UI, API, worker, and simulator. Their screenshots and
+financial assertions replace `.local/e2e-last-success`. The [handoff](../HANDOFF.md)
+explains capture filenames, retention, and verified cleanup.
+
+The [capture record](evidence/screenshot-capture.json) identifies the run, source,
+image hashes, dimensions, and test results. Its [financial evidence](evidence/screenshot-financial.json)
+contains the matching return, operation, provider ledger, and audit count. Read
+the [case study](case-study.md) for transaction boundaries and simulator limits.

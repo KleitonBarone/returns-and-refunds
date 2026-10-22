@@ -1,0 +1,129 @@
+{
+  "capturedAt": "2026-10-22T18:02:44.966Z",
+  "sourceBase": "824e1298e7300792020c8c881f734a98b1c75b73",
+  "captureCode": {
+    "path": "tests/e2e/journeys.spec.ts",
+    "sha256": "af8c8f7b32b442f1947caf45c88f45b42d5632a3cd67ce11b8dbc55009ae123c",
+    "changes": "Working tree adds four capture points and frames existing captures around real detail/refund panels; no application code changes"
+  },
+  "runId": "codex-returns-test-5478370c-adaa-4092-ad92-94237bf4b795",
+  "browserStats": {
+    "startTime": "2026-10-22T18:02:44.966Z",
+    "duration": 20341.449,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "screenshots": [
+    {
+      "file": "screenshots/01-customer-request.png",
+      "captureFilename": "customer-desktop.png",
+      "bytes": 32578,
+      "width": 723,
+      "height": 864,
+      "sha256": "ab1a528660f9161fde6a63b665cd84c732f66d6231600b572c645218b870f260"
+    },
+    {
+      "file": "screenshots/02-support-approved.png",
+      "captureFilename": "support-approved-desktop.png",
+      "bytes": 38091,
+      "width": 723,
+      "height": 961,
+      "sha256": "2ec3596ecb24319dcc9db1834561ca1e7651cc75e9bbbdf1609c0d690241cb81"
+    },
+    {
+      "file": "screenshots/03-warehouse-inspected.png",
+      "captureFilename": "warehouse-inspected-desktop.png",
+      "bytes": 47246,
+      "width": 723,
+      "height": 1157,
+      "sha256": "15a4541a95191d2f95a3fef21ef847c3de6f291a6189f26ca19e9f3f2f017e7d"
+    },
+    {
+      "file": "screenshots/04-refund-unknown.png",
+      "captureFilename": "finance-unknown-desktop.png",
+      "bytes": 21936,
+      "width": 673,
+      "height": 459,
+      "sha256": "5bf3b74a5ef6c65c6f310e6ccc6691f3563bdc7f96211e1da190ab09cedebb3c"
+    },
+    {
+      "file": "screenshots/05-refund-recovered.png",
+      "captureFilename": "finance-recovered-desktop.png",
+      "bytes": 12548,
+      "width": 673,
+      "height": 200,
+      "sha256": "81f25f1ce706603414d39582e5f59d0d0a83ac893244f19ab766db891dac4ba7"
+    },
+    {
+      "file": "screenshots/06-customer-history.png",
+      "captureFilename": "customer-recovered-desktop.png",
+      "bytes": 85212,
+      "width": 723,
+      "height": 1893,
+      "sha256": "18e3885826cc82166ac93ca387522efb585ffb281c48a90027f8399e08e2de21"
+    },
+    {
+      "file": "screenshots/07-customer-narrow.png",
+      "captureFilename": "customer-recovered-narrow.png",
+      "bytes": 97815,
+      "width": 390,
+      "height": 2430,
+      "sha256": "063da8439274aebdd4db1f5d96199fc5bb224f39773659b21395fc81630f7c70"
+    },
+    {
+      "file": "screenshots/08-expired-narrow.png",
+      "captureFilename": "expired-narrow.png",
+      "bytes": 49158,
+      "width": 390,
+      "height": 1226,
+      "sha256": "c557660646b1e70319b8d3503aa591b5e3438827809165a876347042510a5db4"
+    },
+    {
+      "file": "screenshots/09-service-unavailable-narrow.png",
+      "captureFilename": "service-unavailable-narrow.png",
+      "bytes": 15967,
+      "width": 390,
+      "height": 844,
+      "sha256": "48709478b054d78ed586273359db88237f78b39ac0dd8d5168dec616893da54c"
+    }
+  ],
+  "totalBytes": 400551,
+  "budgetBytes": 2097152,
+  "financialEvidence": "screenshot-financial.json",
+  "returnId": "14fa2d84-26fb-47dc-bbad-33e618188d80",
+  "operationId": "8d23a147-2951-41ca-a910-44993603d3b1",
+  "cleanup": {
+    "runId": "codex-returns-test-5478370c-adaa-4092-ad92-94237bf4b795",
+    "source": "824e1298e7300792020c8c881f734a98b1c75b73",
+    "cleanedAt": "2026-10-22T18:03:17.621Z",
+    "retained": [],
+    "result": "cleanup verified"
+  },
+  "annotation": "Direct browser screenshots with no added overlays, generated UI, or image edits",
+  "visualInspection": {
+    "files": [
+      "screenshots/01-customer-request.png",
+      "screenshots/02-support-approved.png",
+      "screenshots/03-warehouse-inspected.png",
+      "screenshots/04-refund-unknown.png",
+      "screenshots/05-refund-recovered.png",
+      "screenshots/06-customer-history.png",
+      "screenshots/07-customer-narrow.png",
+      "screenshots/08-expired-narrow.png",
+      "screenshots/09-service-unavailable-narrow.png"
+    ],
+    "notes": "All nine images inspected. Detail/refund panels retain native text size; finance captures show the same original operation with the reference expanded. No video-frame extraction or image editing."
+  },
+  "failureAndAbandonmentVerification": {
+    "command": "pnpm test:e2e:environment",
+    "exitCode": 0,
+    "expectedFailureRun": "codex-returns-test-8fc55c08-9bba-4c8d-91d5-890dd86ce403",
+    "abandonedRun": "codex-returns-test-ef00f578-d93c-4356-bc5c-74957549ea61",
+    "diagnosticFilesIncludingSummary": 7,
+    "diagnosticBytesIncludingSummary": 62003,
+    "mismatchedTemporaryStorageRefused": true,
+    "cleanupVerified": true
+  }
+}

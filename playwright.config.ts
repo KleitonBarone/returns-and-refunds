@@ -32,10 +32,7 @@ export default defineConfig({
     browserName: "chromium",
     screenshot: "only-on-failure",
     trace: "off",
-    video:
-      process.env.RETURNS_E2E_MODE === "record"
-        ? { mode: "on", size: { width: 1440, height: 1000 } }
-        : "off",
+    video: "off",
     actionTimeout: 10000,
     navigationTimeout: 15000,
   },

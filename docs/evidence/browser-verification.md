@@ -37,12 +37,14 @@ the back button, and Enter returning focus to the queue. The viewport override
 was reset and the task tab closed before resuming the automated journeys.
 
 The successful run's actual provider diagnostics and operation identifiers are
-in [browser-financial.json](browser-financial.json). Screenshots are in
-[screenshots](screenshots/), including `eligible-manual-desktop.jpg`,
+in [browser-financial.json](browser-financial.json). Original screenshots are in
+the [verified historical tree](https://github.com/KleitonBarone/returns-and-refunds/tree/d7a6ac0f54e43c4b198a52d9468a5d18258c6021/docs/evidence/screenshots), including `eligible-manual-desktop.jpg`,
 `expired-manual-narrow.jpg`, `refund-unknown-desktop.png`,
 `refund-recovered-narrow.png`, and `service-unavailable-narrow.png`.
 They contain synthetic data. They are author-performed local evidence and do
-not represent a real payment provider or customer outcome.
+not represent a real payment provider or customer outcome. The current
+[screenshot walkthrough](../walkthrough.md) replaces these images with one
+coherent new run and its own financial evidence.
 
 Failure and interruption verification uses separate disposable runs. A deliberate
 assertion failure must create fresh screenshots, assertion/console reports, and
