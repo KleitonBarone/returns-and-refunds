@@ -1,8 +1,9 @@
 # Local portfolio handoff
 
 The customer, support, warehouse, finance, simulator, recovery, browser journeys,
-and repeatable scenarios are implemented. Delivery PRs 1 through 8 are merged.
-The final documentation/recording delivery is tracked in [PLAN.md](PLAN.md).
+and repeatable scenarios are implemented. All nine implementation deliveries are
+merged. The current walkthrough uses [screenshots](docs/walkthrough.md); its
+replacement delivery and original history are tracked in [PLAN.md](PLAN.md).
 Public hosting and real payment integration remain separate scope.
 
 ## Start and inspect
@@ -29,35 +30,36 @@ also installs Chromium system libraries; CI provisions them on its runner.
 `test:e2e:environment` deliberately fails an assertion and terminates its owned
 supervisor. Its successful exit means the diagnostics and recovery checks passed.
 
-## Reproduce the recording
+## Reproduce the screenshots
 
 ```sh
 pnpm browser:install
-pnpm demo:record
+pnpm test:e2e
 ```
 
-The recording follows the existing partial-return keyboard journey on fresh
-paired databases. It creates one $35 refund with a dropped response, restarts
-the actual API/worker/simulator, recovers the original operation, and checks one
-independent ledger entry and one success audit after three signed event copies.
-English captions are added only by the recording test. Intentional reading
-intervals produce roughly 90 seconds; business assertions still wait on real
-state. There is no spoken narration. The application code has no caption banner.
+The existing keyboard journey creates one $35 refund with a dropped response on
+fresh paired databases. It restarts the actual API, worker, and simulator,
+recovers the original operation, and verifies one ledger entry and one success
+audit after three signed late-event copies. Screenshots capture asserted UI
+states directly. Video and traces stay off; there are no caption overlays or
+timed reading pauses.
 
-Recording is explicitly enabled only by `demo:record`. Ordinary tests keep video
-and traces off. The latest WebM, caption transcript, financial record, and report
-replace `.local/walkthrough-last`, capped at 100 files and 32 MiB. Browser profiles,
-services, containers, network, and disposable databases are removed afterward.
-For an MP4 release asset, convert the retained `video.webm` with an existing FFmpeg:
+Successful screenshots, `financial-evidence.json`, and `report.json` replace
+`.local/e2e-last-success`. Find them beneath its journey subdirectories. The six
+main capture filenames are `customer-desktop.png`, `support-approved-desktop.png`,
+`warehouse-inspected-desktop.png`, `finance-unknown-desktop.png`,
+`finance-recovered-desktop.png`, and `customer-recovered-desktop.png`. The second
+journey adds narrow expiry and service-outage views; the first also saves narrow
+customer history. The [capture record](docs/evidence/screenshot-capture.json)
+maps these names to the nine published images and records hashes, dimensions,
+source, and verified teardown.
 
-```sh
-ffmpeg -i video.webm -c:v libx264 -crf 23 -preset medium -pix_fmt yuv420p -movflags +faststart -an returns-and-refunds.mp4
-```
-
-FFmpeg is optional for app setup and WebM recording. The published
-[walkthrough release](https://github.com/KleitonBarone/returns-and-refunds/releases/tag/portfolio-walkthrough-2026-10-21)
-keeps large media outside Git. The [walkthrough notes](docs/walkthrough.md) link its
-actual financial evidence and transcript.
+To refresh the guide, select images only after both journeys pass. Copy their
+matching financial evidence, inspect readability, and replace the curated set
+under `docs/evidence/screenshots`. Keep it under 2 MiB. Do not mix identifiers from
+different runs. The temporary browser profiles, services, containers, network,
+and disposable databases are removed by the runner. Diagnostics replace one
+bounded directory per outcome, capped at 100 files and 32 MiB.
 
 ## Verify a fresh checkout
 
@@ -78,10 +80,11 @@ Development shutdown preserved the newly created volumes, then explicit
 ownership-checked rehearsal cleanup removed just those two volumes. Original
 development data survived. No rehearsal service, network, or volume remains.
 
-After the final PR merges, the final
-remote SHA must be checked in that separate clone and its final checks rerun.
-The release's `final-verification.json` records that post-merge result; this file
-does not claim a future merge or its checks in advance.
+The original final PR merged as `d7a6ac0`. Its exact remote SHA passed all 12 final
+commands in the separate checkout, which was then removed. The release's
+`final-verification.json` preserves that historical result. The current screenshot
+delivery publishes `screenshot-verification.json` after its own merge and checks.
+Both records state the source they actually verified.
 
 ## Recover and clean up
 
@@ -107,11 +110,12 @@ Run manifests live under ignored `.local/runs`. Each child log is capped at 5 Mi
 shutdown removes its run directory. The latest failure log is capped at 1 MiB.
 Success/failure browser diagnostics each replace one directory, capped at 32 MiB
 and 100 files. CI retains failure artifacts for seven days. Scenario summaries
-replace two fixed JSON files. Recording replaces its own bounded directory.
+replace two fixed JSON files. The published screenshot set replaces its previous
+images rather than accumulating capture runs.
 
 The pinned PostgreSQL image, installed package dependencies, matching Chromium
 cache, and two original development volumes are intentionally retained for reuse.
-The volumes contain earlier fictional return progress; tests and recording never
+The volumes contain earlier fictional return progress; screenshot runs and tests never
 reset them. Temporary checkout dependencies, browser downloads, builds, and owned
 data are removed when the rehearsal ends. The final evidence reports measured
 retained disk usage. To discard an unused checkout's browser cache, first stop
@@ -125,6 +129,8 @@ development pair uses about 64 and 63 MiB of logical file data. The PostgreSQL
 image is about 383 MiB, the dedicated Chromium cache 441 MiB, and installed package
 files 258 MiB. Package hard links and image layers can share physical storage;
 these are not additive measurements of machine disk use. Browser diagnostics
-and the web build are under 1 MiB each. The temporary clean clone, its separate
-browser cache, and local recording/conversion files are tracked until final
-remote verification and removed afterward. The published release retains the MP4.
+and the web build are under 1 MiB each. These measurements describe the original
+delivery. Its temporary clean clone, separate browser cache, and media files were
+removed after verification. Current capture runs reuse the project's matching
+browser cache and remove their disposable resources. Published screenshots live
+in Git; the release keeps verification JSON rather than video assets.

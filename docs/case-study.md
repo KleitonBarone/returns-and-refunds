@@ -10,7 +10,7 @@ units, and amount reserved. Finance can check its original key after the API,
 worker, and simulator restart. A matching receipt closes the return without
 submitting another refund.
 
-![Unknown outcome before recovery](evidence/screenshots/refund-unknown-desktop.png)
+![Unknown outcome before recovery](evidence/screenshots/04-refund-unknown.png)
 
 ## The implementation decision
 
@@ -35,13 +35,14 @@ audit, and a late processing observation cannot undo success.
 
 ## What was observed
 
-The [browser financial record](evidence/browser-financial.json) contains an
+The [screenshot financial record](evidence/screenshot-financial.json) contains an
 actual $35 partial refund, its app operation and provider identifiers, and three
 late signed processing-event copies. The app recovered the same operation after
-real service restarts. The simulator held one 3500 USD ledger entry, and the app
-held one successful business audit. The customer's remaining quantity was two
-tees. Keyboard and narrow-layout captures accompany the
-[browser verification](evidence/browser-verification.md).
+real service restarts. The simulator held one USD ledger entry of 3500 minor units,
+or $35, and the app held one successful business audit. Two tees remained
+available. The [screenshot walkthrough](walkthrough.md) follows that same return and
+links its capture provenance. Earlier keyboard and narrow-layout checks remain
+documented in the [browser verification](evidence/browser-verification.md).
 
 The [repeatable verification](evidence/repeatable-financial.json) runs a broader
 set twice. Each cycle has three successful provider entries totaling 10500.

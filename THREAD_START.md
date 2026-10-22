@@ -1,9 +1,9 @@
 # Resume work on returns and refunds
 
 The application and repeatable scenarios are implemented. Read [README.md](README.md)
-to run it, [HANDOFF.md](HANDOFF.md) for recording/cleanup, and [PLAN.md](PLAN.md)
+to run it, [HANDOFF.md](HANDOFF.md) for screenshots/cleanup, and [PLAN.md](PLAN.md)
 for the actual delivery history. Check GitHub's current PR/merge state and the
-walkthrough release's final verification artifact before declaring delivery closed.
+release's current screenshot verification artifact before declaring delivery closed.
 An open PR or a local commit does not establish that the final remote tree passed.
 
 For future work, use a prompt like this:

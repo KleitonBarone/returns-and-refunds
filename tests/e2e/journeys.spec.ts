@@ -84,9 +84,10 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       expect(created.amountMinor).toBe(3500);
       expect(created.items).toHaveLength(1);
       const row = new RegExp(`^Return ${created.id.slice(0, 8).toUpperCase()} for NL-1042,`);
+      const detail = page.getByRole("region", { name: "NL-1042", exact: true });
       await expect(page.getByText("Support will review this request next.")).toBeVisible();
       await expect(page.getByRole("heading", { name: "NL-1042", exact: true })).toBeFocused();
-      await page.screenshot({ path: info.outputPath("customer-desktop.png"), fullPage: true });
+      await detail.screenshot({ path: info.outputPath("customer-desktop.png") });
 
       await persona(page, "support-ava", "support");
       await enter(page, row);
@@ -100,6 +101,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       await expect(
         page.getByText("Approved. Waiting for the warehouse to receive the items."),
       ).toBeVisible();
+      await detail.screenshot({ path: info.outputPath("support-approved-desktop.png") });
 
       await persona(page, "warehouse-jules", "warehouse");
       await enter(page, row);
@@ -117,6 +119,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       await expect(
         page.getByText("Inspection passed. This return is ready for finance to review the refund."),
       ).toBeVisible();
+      await detail.screenshot({ path: info.outputPath("warehouse-inspected-desktop.png") });
 
       await persona(page, "finance-sam", "finance");
       await enter(page, row);
@@ -138,10 +141,10 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
         .from(refundOperations)
         .where(eq(refundOperations.returnId, created.id));
       expect(operation?.amountMinor).toBe(3500);
-      await page.screenshot({
-        path: info.outputPath("finance-unknown-desktop.png"),
-        fullPage: true,
-      });
+      await refundPanel.getByText("Payment reference", { exact: true }).press("Enter");
+      await expect(refundPanel.getByText(/Refund operation /)).toBeVisible();
+      await page.getByRole("heading", { name: "NL-1042", exact: true }).focus();
+      await refundPanel.screenshot({ path: info.outputPath("finance-unknown-desktop.png") });
 
       await serviceCommand("restart");
       await page.reload();
@@ -186,6 +189,10 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       expect(successAudit).toHaveLength(1);
       const finalProvider = simulatorDiagnostics.assert(await control("diagnostics"));
       expect(finalProvider.ledger).toHaveLength(1);
+      await refundPanel.getByText("Payment reference", { exact: true }).press("Enter");
+      await expect(refundPanel.getByText(/Refund operation /)).toBeVisible();
+      await page.getByRole("heading", { name: "NL-1042", exact: true }).focus();
+      await refundPanel.screenshot({ path: info.outputPath("finance-recovered-desktop.png") });
       await writeFile(
         info.outputPath("financial-evidence.json"),
         JSON.stringify(
@@ -210,6 +217,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       await expect(
         page.getByText("Check the original refund after services restarted.", { exact: true }),
       ).toBeVisible();
+      await detail.screenshot({ path: info.outputPath("customer-recovered-desktop.png") });
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(page.getByRole("region", { name: "Customer orders and returns" })).toBeHidden();
       expect(

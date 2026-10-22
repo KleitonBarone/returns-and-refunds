@@ -172,5 +172,5 @@
     ],
     "checkoutRetainedOnlyForFinalRemoteShaVerification": true
   },
-  "postMergeClosure": "Pending actual final PR merge; final-verification.json will be attached to the walkthrough release after exact remote SHA checks and removal of this checkout"
+  "postMergeClosure": "Completed on merged source d7a6ac0f54e43c4b198a52d9468a5d18258c6021; the historical final-verification.json release asset records exact remote SHA checks and removal of this checkout"
 }

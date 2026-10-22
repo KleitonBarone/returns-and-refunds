@@ -13,10 +13,10 @@ not assigned GitHub numbers. Record real PR numbers, commit hashes, check result
 and merge timestamps as work finishes, never invent them.
 
 Execution is now authorized through the complete remaining plan, including
-commits, pushes, draft PRs, checks, and actual merges. Implementation deliveries 1
-through 8 are merged. Delivery 9 adds the final portfolio handoff, recorded
-walkthrough, and clean-checkout verification. Final closure requires its actual
-merge and post-merge checks; those results must not be inferred from an open PR.
+commits, pushes, draft PRs, checks, and actual merges. All nine implementation
+deliveries merged through GitHub PR #11, with final verification on `d7a6ac0`.
+The screenshot follow-up below replaces the original video at Kleiton's request.
+Its own merge, checks, and release cleanup must be verified separately.
 
 Build a local portfolio application for Kleiton, a senior engineer in Brazil
 targeting international remote roles. Recruiters should recognize the commerce
@@ -29,7 +29,7 @@ partial return through approval, inspection, a successful simulated refund whose
 response is lost, and recovery that leaves one refund in the provider ledger.
 
 Completion means working local software, focused verification, repeatable
-scenarios, screenshots, an English walkthrough of roughly 90 seconds, and a case
+scenarios, a numbered English screenshot walkthrough, and a case
 study, with every delivery PR merged into `main`. Public hosting is optional future
 work. A merged PR does not imply a deployed site.
 
@@ -488,11 +488,10 @@ Depends on PR 8. Completes original milestone 5.
 2. `Verify clean-checkout setup and close the delivery plan`
 
 Replace README's planned setup with verified prerequisites and commands. Add
-screenshots, architecture/transaction explanations, and the roughly 90-second
-English demonstration below. Capture locally with a reproducible recording
-workflow. If narration requires Kleiton, prepare the script and capture and record
-narration as outstanding, rather than claiming a finished video. Link large media
-through an appropriate artifact/release location and verify access.
+screenshots and architecture/transaction explanations. The original video
+demonstration was delivered, then superseded by Kleiton's screenshot-only request
+on October 22. The current demonstration is a numbered English screenshot guide
+captured through the existing full-stack browser journey.
 
 Write the case study with actual local evidence and simulator limitations, without
 customer-impact or provider-certification claims. Update the handoff and delivery
@@ -655,7 +654,7 @@ blocked concurrently on the same order lock. Only one claims the selected units.
 Browser verification created a $35 partial request, opened its policy/history in
 Ava's queue, confirmed Robin's separate merchant queue stayed empty, and checked
 the expired order's disabled form. Evidence is saved in
-`docs/evidence/screenshots/customer-request.jpg`. The preview processes,
+[the original customer capture](https://github.com/KleitonBarone/returns-and-refunds/blob/d7a6ac0f54e43c4b198a52d9468a5d18258c6021/docs/evidence/screenshots/customer-request.jpg). The preview processes,
 container, and network stopped with verified teardown. Its project-owned demo
 volume remains available; disposable test resources were removed.
 [GitHub PR #4](https://github.com/KleitonBarone/returns-and-refunds/pull/4) includes
@@ -681,7 +680,7 @@ unchanged.
 The retained demo data migrated successfully. Browser verification carried the
 existing $35 request through support approval, warehouse receipt, and passing
 inspection, then verified finance readiness and the customer's ordered history.
-Evidence is in `docs/evidence/screenshots/inspection-passed.jpg`. A 390px DOM
+Evidence is in [the original inspection capture](https://github.com/KleitonBarone/returns-and-refunds/blob/d7a6ac0f54e43c4b198a52d9468a5d18258c6021/docs/evidence/screenshots/inspection-passed.jpg). A 390px DOM
 check showed the detail contained within the viewport; narrow screenshot capture
 timed out, so complete responsive visual review remains in delivery 7. The browser
 size was restored, its task tab closed, and preview teardown verified. Test
@@ -757,7 +756,7 @@ preservation of unrelated fixture/network resources also passed.
 Browser verification migrated the retained demo data, confirmed the $35 refund
 as Sam, observed automatic success and closure, and opened the same receipt and
 history as Maya. The simulator diagnostics independently showed one $35 entry.
-The inspected screenshot is `docs/evidence/screenshots/refund-succeeded.jpg`.
+The inspected screenshot is [the original refund capture](https://github.com/KleitonBarone/returns-and-refunds/blob/d7a6ac0f54e43c4b198a52d9468a5d18258c6021/docs/evidence/screenshots/refund-succeeded.jpg).
 The task tab closed; development shutdown verified removal of services, worker,
 containers, and network. Only the two project demo volumes remain. Disposable
 test resources were removed. Remote PR/merge evidence follows in the next update.
@@ -819,8 +818,8 @@ cleanup, and preservation of unrelated resources also passed.
 Browser verification used the retained demo data, completed customer/support/
 warehouse/finance actions, observed a reserved $50 unknown outcome, and recovered
 it through finance status lookup. Maya saw the same receipt and recovery history.
-Screenshots are `docs/evidence/screenshots/refund-unknown.jpg` and
-`refund-recovered.jpg`; actual bounded provider diagnostics are in
+Original screenshots are [unknown](https://github.com/KleitonBarone/returns-and-refunds/blob/d7a6ac0f54e43c4b198a52d9468a5d18258c6021/docs/evidence/screenshots/refund-unknown.jpg) and
+[recovered](https://github.com/KleitonBarone/returns-and-refunds/blob/d7a6ac0f54e43c4b198a52d9468a5d18258c6021/docs/evidence/screenshots/refund-recovered.jpg); actual bounded provider diagnostics are in
 `docs/evidence/refund-recovery-provider.json`. They contain one matching $50
 ledger entry. Simulator controls returned to success, both task browser tabs
 closed, and development shutdown verified teardown. Disposable test resources
@@ -950,25 +949,16 @@ development volumes remained. Existing PostgreSQL and browser caches were reused
 
 Branch `docs/portfolio-handoff` is
 [GitHub PR #11](https://github.com/KleitonBarone/returns-and-refunds/pull/11).
-It opens as a draft. Its final head must pass CI and review checks before the
-authorized merge and exact remote-main verification.
+It passed CI on `08206ba` with no review findings and merged at
+`2026-10-21T23:39:50Z` as `d7a6ac0f54e43c4b198a52d9468a5d18258c6021`.
 
-Commit `8d727a6` adds the 544-word README, handoff, architecture/transaction
-explanation, recovery case study, and reproducible `demo:record` command.
-The existing keyboard journey records the real workflow with English captions;
-ordinary checks retain their normal viewport and keep video off. A closing-caption
-paint issue found in frame review was corrected before the published capture.
-
-The published [walkthrough release](https://github.com/KleitonBarone/returns-and-refunds/releases/tag/portfolio-walkthrough-2026-10-21)
-contains the 91.04-second MP4, 1686867 bytes. Its anonymous download matched
-SHA-256 `547aa27ae87bd9bd8290d33bead67a136d6f0ffc36f6ddfff2287808441c5142`.
-Frames at 8, 35, 55, 75, and 89 seconds were inspected. The capture used actual
-API/worker/simulator restarts, one USD provider ledger entry of 3500 minor units,
-or $35.00, three signed late-event copies returning 200, and one success audit.
-There is no spoken
-narration. All disposable recording resources were removed. The
-[recording notes](docs/walkthrough.md) link the transcript, financial record,
-source, media metadata, and cleanup result.
+Commit `8d727a6` added the original README, handoff, architecture/transaction
+explanation, recovery case study, and video demonstration. Commit `08206ba`
+recorded the independent clean-clone rehearsal. The original video was verified
+before publication; the screenshot follow-up replaces that presentation and
+removes its recording code and published media. Historical source remains in
+Git. The current [walkthrough](docs/walkthrough.md) uses screenshots and linked
+financial evidence.
 
 The fresh-clone rehearsal and final remote-main closure are recorded separately.
 The [fresh-clone record](docs/evidence/clean-checkout.json) verifies source
@@ -980,22 +970,56 @@ Its two browser journeys passed in 21.5 seconds. Expected browser-failure eviden
 used 7 files and 62695 bytes; supervisor-death cleanup passed. Development shutdown
 preserved the two new rehearsal volumes, then explicitly verified ownership before
 removing those temporary volumes. No rehearsal process, container, network, or
-volume remained. The clean clone and its cache are retained only for the exact
-post-merge SHA check. The handoff records measured retained resources and cleanup.
+volume remained. After merge, the exact remote `d7a6ac0` passed all 12 final
+commands in that clone, including 4 unit tests, 59 integration tests, both browser
+journeys, lifecycle/failure cleanup, reset/recovery, and one-shot demo. GitHub CI
+also passed on the merged SHA. The clone, its cache, local media, and helper files
+were removed. Original development volumes and reusable project caches survived.
+The release's [historical final verification](https://github.com/KleitonBarone/returns-and-refunds/releases/download/portfolio-walkthrough-2026-10-21/final-verification.json)
+records these results. Its anonymous download matched its published SHA-256.
+All PR watchers were stopped and local main was clean.
 
-The final release's `final-verification.json` is written only after this delivery
-actually merges and its exact remote SHA passes the clean-checkout checks.
-GitHub's merge record and that final artifact are authoritative for these
-post-merge gates; this PR cannot contain its own future merge SHA.
+### Follow-up. Replace recordings with a screenshot guide
+
+Kleiton requested a screenshot-only presentation on October 22 and authorized
+execution of the replacement plan. Branch `docs/screenshot-walkthrough` is
+[GitHub PR #12](https://github.com/KleitonBarone/returns-and-refunds/pull/12), opened
+as a draft with two logical commits. `824e129` removes the recording command,
+caption helper,
+timed pauses, video mode, and WebM retention. `Replace the video walkthrough with
+screenshots` adds six numbered UI states plus narrow/error examples, capture
+provenance, matching financial assertions, and revised documentation.
+
+The curated capture run was
+`codex-returns-test-5478370c-adaa-4092-ad92-94237bf4b795`. Both journeys passed in
+20.3 seconds; nine inspected PNGs total 400551 bytes, below the 2 MiB budget.
+The [capture record](docs/evidence/screenshot-capture.json) records source/code
+hashes, image dimensions/hashes, test statistics, and verified cleanup. Its
+[financial record](docs/evidence/screenshot-financial.json) confirms one $35
+provider entry and one success audit after real restarts and three late-event
+copies. Existing financial assertions remain intact. Superseded images are
+removed from the current tree, with immutable links preserving earlier evidence.
+
+The failure/abandonment verifier exited zero. Its deliberate failure produced
+7 diagnostic files totalling 62003 bytes. Browser termination, mismatched-storage
+refusal, complete abandoned-run cleanup, and preservation of unrelated resources
+passed. Type/format checks also passed. Latest main was incorporated before
+opening the draft; its final head must pass CI and reviews before merge.
+
+After that merge, verify its exact remote SHA, remove the published MP4 and
+recording-metadata assets, and update the existing release to point to the guide.
+Preserve the historical final verification and publish a new
+`screenshot-verification.json` for this delivery. Verify public access, remove
+temporary captures/helpers, and confirm no project recordings or disposable
+services remain. These post-merge actions are pending until actually performed.
 
 ## Final acceptance
 
-These checkboxes record evidence available before the final PR merges. The two
-remote-main gates remain open at that point. Their completed result is recorded
-in the walkthrough release's `final-verification.json` after the actual merge,
-exact-SHA checks, and removal of the rehearsal checkout.
+Original implementation acceptance passed on `d7a6ac0`, recorded in the release's
+`final-verification.json`. The screenshot follow-up preserves those results and
+records its own merge/check/cleanup result in `screenshot-verification.json`.
 
-- [ ] All planned capabilities exist on remote main and all delivery PRs are
+- [x] All planned capabilities exist on remote main and all delivery PRs are
   merged, with their URLs, commits, and final checks accounted for.
 - [x] A clean checkout runs with documented local prerequisites and no sibling
   repository, paid account, real credentials, or existing development environment.
@@ -1018,7 +1042,7 @@ exact-SHA checks, and removal of the rehearsal checkout.
   nor regress success. Unknown outcomes keep their reservations.
 - [x] Reset refuses unmarked databases and changes only the paired disposable
   project environment. Repeated scenarios produce the documented assertions.
-- [ ] Desktop, narrow layouts, keyboard flows, and error states are inspected.
+- [x] Desktop, narrow layouts, keyboard flows, and error states are inspected.
   Required checks and browser journeys pass on the final merged tree.
 - [x] Verified README setup, screenshots, an English walkthrough, a case study,
   and scenario evidence are available and accurately describe local simulation.
