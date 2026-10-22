@@ -20,7 +20,6 @@ import {
   typeReason,
   waitForHoldRelease,
 } from "./fixtures.ts";
-import { walkthrough } from "./walkthrough.ts";
 
 if (process.env.RETURNS_E2E_MODE === "hold") {
   test("hold a real browser for abandoned-run recovery", async ({ page }) => {
@@ -39,9 +38,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
   test("keyboard partial return recovers one refund after service restarts", async ({
     page,
   }, info) => {
-    test.setTimeout(180000);
     const { pool, db } = connectDatabase(String(process.env.DATABASE_URL));
-    const film = walkthrough(page, info);
     try {
       await control("payments", {
         merchantId: "northline",
@@ -52,9 +49,6 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
         eventCopies: 2,
       });
       await page.goto("/");
-      await film.scene(
-        "Northline Supply: a fictional merchant with a real return workflow.\nFollow one partial return from customer request to refund recovery.",
-      );
       await enter(page, "Open Maya's orders");
       await enter(page, /NL-1042.*Return window open/);
       await expect(
@@ -67,9 +61,6 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
         page,
         "Why are you returning these items?",
         "The tee fits larger than expected.",
-      );
-      await film.scene(
-        "Maya returns one tee from a three-unit order.\nThe server calculates the partial refund: $35.00.",
       );
       const response = page.waitForResponse(
         (result) => result.url().endsWith("/api/returns") && result.request().method() === "POST",
@@ -96,9 +87,6 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       await expect(page.getByText("Support will review this request next.")).toBeVisible();
       await expect(page.getByRole("heading", { name: "NL-1042", exact: true })).toBeFocused();
       await page.screenshot({ path: info.outputPath("customer-desktop.png"), fullPage: true });
-      await film.scene(
-        "The request reserves only the selected unit.\nSupport can review the policy snapshot and the customer's reason.",
-      );
 
       await persona(page, "support-ava", "support");
       await enter(page, row);
@@ -113,9 +101,6 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
         page.getByText("Approved. Waiting for the warehouse to receive the items."),
       ).toBeVisible();
 
-      await film.scene(
-        "Ava approves the eligible partial return with a reason.\nThe recorded decision identifies who acted and why.",
-      );
       await persona(page, "warehouse-jules", "warehouse");
       await enter(page, row);
       for (const [label, reason] of [
@@ -133,9 +118,6 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
         page.getByText("Inspection passed. This return is ready for finance to review the refund."),
       ).toBeVisible();
 
-      await film.scene(
-        "Jules records receipt and passes inspection.\nFinance can now review the reserved refund amount.",
-      );
       await persona(page, "finance-sam", "finance");
       await enter(page, row);
       await typeReason(page, "Refund reason", "Refund the inspected tee to the original payment.");
@@ -143,9 +125,6 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       await expect(
         page.getByRole("button", { name: "Confirm $35.00 refund", exact: true }),
       ).toBeFocused();
-      await film.scene(
-        "Sam reviews and confirms the exact $35.00 amount.\nA durable operation keeps its original payment key across attempts.",
-      );
       await enter(page, "Confirm $35.00 refund");
       const refundPanel = page.getByRole("region", { name: "Refund status" });
       await expect(refundPanel.getByText("Outcome unknown", { exact: true })).toBeVisible();
@@ -163,16 +142,10 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
         path: info.outputPath("finance-unknown-desktop.png"),
         fullPage: true,
       });
-      await film.scene(
-        "The payment simulator stored success, but its response was lost.\nThe app keeps the outcome unknown and the amount reserved.",
-      );
 
       await serviceCommand("restart");
       await page.reload();
       await enter(page, row);
-      await film.scene(
-        "The API, worker, and payment simulator have actually restarted.\nTheir databases and the original refund operation are preserved.",
-      );
       await typeReason(
         page,
         "Recovery reason",
@@ -213,9 +186,6 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       expect(successAudit).toHaveLength(1);
       const finalProvider = simulatorDiagnostics.assert(await control("diagnostics"));
       expect(finalProvider.ledger).toHaveLength(1);
-      await film.scene(
-        "Recovery confirmed the original refund. Independent ledger: one $35.00 entry.\nThree signed late-event copies left one success audit and no duplicate refund.",
-      );
       await writeFile(
         info.outputPath("financial-evidence.json"),
         JSON.stringify(
@@ -240,25 +210,19 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       await expect(
         page.getByText("Check the original refund after services restarted.", { exact: true }),
       ).toBeVisible();
-      if (!film.recording) await page.setViewportSize({ width: 390, height: 844 });
-      if (!film.recording)
-        await expect(
-          page.getByRole("region", { name: "Customer orders and returns" }),
-        ).toBeHidden();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(page.getByRole("region", { name: "Customer orders and returns" })).toBeHidden();
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true);
       await page.screenshot({
-        path: info.outputPath(
-          film.recording ? "customer-recovered-desktop.png" : "customer-recovered-narrow.png",
-        ),
+        path: info.outputPath("customer-recovered-narrow.png"),
         fullPage: true,
       });
       await enter(page, "Back to orders and returns");
       await expect(page.getByRole("region", { name: "Customer orders and returns" })).toBeFocused();
       await enter(page, /NL-1042.*Return window open/);
       await expect(page.getByText("2 of 3 units available", { exact: true })).toBeVisible();
-      await film.finish();
     } finally {
       await pool.end();
     }
