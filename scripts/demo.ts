@@ -141,6 +141,7 @@ async function runDemo(once: boolean) {
       manifest,
       ["node_modules/vite/bin/vite.js", "--config", "apps/web/vite.config.ts"],
       applicationEnvironment(env),
+      { service: "Web" },
     );
     console.log(
       `Disposable demo ${manifest.id}\nOpen http://127.0.0.1:${manifest.webPort}\nReset: pnpm demo:reset ${manifest.id}\nCtrl+C stops this run and removes both disposable databases.`,

@@ -56,6 +56,17 @@ describe("customer return requests", () => {
     const second = await app.inject({ method: "POST", url: "/api/returns", headers, payload });
     const request = returnDetailContract.assert(first.json());
     expect(returnDetailContract.assert(second.json()).id).toBe(request.id);
+    const reordered = await app.inject({
+      method: "POST",
+      url: "/api/returns",
+      headers,
+      payload: {
+        ...payload,
+        items: payload.items.map(({ lineId, quantity }) => ({ quantity, lineId })),
+      },
+    });
+    expect(reordered.statusCode).toBe(201);
+    expect(returnDetailContract.assert(reordered.json()).id).toBe(request.id);
     expect(
       await db.select().from(auditEntries).where(eq(auditEntries.returnId, request.id)),
     ).toHaveLength(1);

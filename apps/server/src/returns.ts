@@ -193,7 +193,9 @@ export async function requestReturn(
       JSON.stringify({
         orderId: input.orderId,
         reason: input.reason.trim(),
-        items: [...input.items].sort((a, b) => a.lineId.localeCompare(b.lineId)),
+        items: [...input.items]
+          .sort((a, b) => a.lineId.localeCompare(b.lineId))
+          .map(({ lineId, quantity }) => ({ lineId, quantity })),
       }),
     )
     .digest("hex");

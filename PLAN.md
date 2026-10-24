@@ -1,5 +1,8 @@
 # Returns and refunds delivery plan
 
+For current behavior, setup, and maintenance notes, start with [HANDOFF.md](HANDOFF.md).
+This file preserves the delivery plan and its historical verification records.
+
 ## Starting point and completion
 
 On October 19, 2026, the repository contained planning documents only. Planning

@@ -6,6 +6,35 @@ merged. The current walkthrough uses [screenshots](docs/walkthrough.md); its
 replacement delivery and original history are tracked in [PLAN.md](PLAN.md).
 Public hosting and real payment integration remain separate scope.
 
+## Current maintenance status
+
+The repository review fixes request replay when JSON keys change order, keeps
+unknown refunds refreshing after signed callbacks, and makes interactive demos
+fail visibly and clean up when a critical service exits. Intentional service
+restarts and scenario resets remain supported. Process ownership and service
+monitoring live in `scripts/processes.ts`; checkout identity and port settings
+live in `scripts/environment-config.ts`.
+
+The browser suite also checks an unknown refund's late signed success without
+manual lookup. It verifies that both its detail and queue refresh, the return
+closes, and the provider still has one ledger entry for that refund.
+
+`pnpm env:doctor` checks prerequisites without reserving default service ports.
+Use `pnpm env:doctor --dev` to check configured development ports. A value of zero
+requests an assigned port and is skipped by that fixed-port check.
+
+Checkout identities preserve path case on Linux. Existing Windows identities and
+development volumes stay the same. An uppercase Linux checkout from before this
+fix gets a new identity. Its old volumes are retained and are not automatically
+adopted or removed. Before upgrading an active old checkout, stop its environment
+with the old runner; inspect and explicitly back up or migrate its old volumes
+if that development data is needed.
+
+Reuse is covered by [MIT](LICENSE). A scoped override pins the legacy Drizzle
+loader's esbuild to 0.25.12 to address
+[GHSA-67mh-4wv8-2f99](https://github.com/evanw/esbuild/security/advisories/GHSA-67mh-4wv8-2f99).
+It does not override the application's other esbuild consumers.
+
 ## Start and inspect
 
 The [README](README.md) is the shortest setup path. `pnpm demo:run` creates a
@@ -54,7 +83,7 @@ customer history. The [capture record](docs/evidence/screenshot-capture.json)
 maps these names to the nine published images and records hashes, dimensions,
 source, and verified teardown.
 
-To refresh the guide, select images only after both journeys pass. Copy their
+To refresh the guide, select images only after all browser journeys pass. Copy their
 matching financial evidence, inspect readability, and replace the curated set
 under `docs/evidence/screenshots`. Keep it under 2 MiB. Do not mix identifiers from
 different runs. The temporary browser profiles, services, containers, network,

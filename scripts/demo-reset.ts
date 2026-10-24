@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PoolClient } from "pg";
@@ -18,6 +17,7 @@ import {
   stopRefundWorker,
   stopSimulator,
 } from "./environment.ts";
+import { workspaceIdentity } from "./environment-config.ts";
 
 // Explicit lists make an added foreign key fail closed instead of cascading into unknown data.
 export const appTables = [
@@ -43,7 +43,7 @@ export const appTables = [
 export const providerTables = ["captures", "simulator_refunds", "ledger", "controls", "deliveries"];
 
 export async function verifyDemoOwner(manifest: Manifest) {
-  const workspace = createHash("sha256").update(root.toLowerCase()).digest("hex").slice(0, 12);
+  const workspace = workspaceIdentity(root);
   const owner = await identity(manifest.owner.pid);
   assert.ok(
     manifest.mode === "demo" &&

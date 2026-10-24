@@ -89,6 +89,7 @@ export async function runBrowserEnvironment(
       manifest,
       ["node_modules/vite/bin/vite.js", "preview", "--config", "apps/web/vite.config.ts"],
       applicationEnvironment(env),
+      { service: "Web preview" },
     );
     await waitFor(
       `http://127.0.0.1:${manifest.webPort}/api/health`,

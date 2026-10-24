@@ -14,13 +14,14 @@ import { healthResponse } from "../packages/contracts/src/index.ts";
 import { simulatorHealth } from "../packages/contracts/src/payment.ts";
 import { browserProcessRecord } from "./browser-contracts.ts";
 import { prepareDatabase } from "./database.ts";
+import { developmentPorts, doctorPorts, workspaceIdentity } from "./environment-config.ts";
+import { identity, matches, processIdentity, superviseServices } from "./processes.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 if (existsSync(join(root, ".env"))) process.loadEnvFile(join(root, ".env"));
-const workspace = createHash("sha256").update(root.toLowerCase()).digest("hex").slice(0, 12);
+const workspace = workspaceIdentity(root);
 const runsRoot = join(root, ".local", "runs");
 const windows = process.platform === "win32";
-const processIdentity = type({ pid: "number.integer > 0", birth: "string", commandHash: "string" });
 const manifestType = type({
   id: "string",
   workspace: "string",
@@ -43,6 +44,7 @@ const manifestType = type({
   "keepalivePid?": "number.integer > 0",
 });
 type Manifest = typeof manifestType.infer;
+const supervisors = new WeakMap<Manifest, ReturnType<typeof superviseServices>>();
 
 function command(binary: string, args: string[], options: { input?: string } = {}) {
   return execFileSync(binary, args, {
@@ -74,49 +76,6 @@ function docker(args: string[], options: { input?: string } = {}) {
         options,
       )
     : command("docker", ["--context", "default", ...args], options);
-}
-async function identity(pid: number) {
-  try {
-    if (windows) {
-      const raw = command("powershell.exe", [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        `$p = Get-CimInstance Win32_Process -Filter 'ProcessId = ${pid}'; if ($p) { @{ birth=$p.CreationDate.ToUniversalTime().ToString('o'); cmd=$p.CommandLine } | ConvertTo-Json -Compress }`,
-      ]);
-      if (!raw) return undefined;
-      const record = type({ birth: "string", cmd: "string" }).assert(JSON.parse(raw));
-      return {
-        pid,
-        birth: record.birth,
-        commandHash: createHash("sha256").update(record.cmd).digest("hex"),
-      };
-    }
-    const [info, cmd] = await Promise.all([
-      readFile(`/proc/${pid}/stat`, "utf8"),
-      readFile(`/proc/${pid}/cmdline`, "utf8"),
-    ]);
-    const fields = info.slice(info.lastIndexOf(")") + 2).split(" ");
-    // Exited processes can retain their PID with an empty command line until reaped.
-    if (fields[0] === "Z" || fields[0] === "X") return undefined;
-    return {
-      pid,
-      birth: fields[19] ?? "",
-      commandHash: createHash("sha256").update(cmd).digest("hex"),
-    };
-  } catch (error) {
-    try {
-      process.kill(pid, 0);
-    } catch (probe) {
-      if (probe instanceof Error && "code" in probe && probe.code === "ESRCH") return undefined;
-      throw new Error(`Cannot establish ownership of process ${pid}`);
-    }
-    throw new Error(`Cannot establish ownership of live process ${pid}`, { cause: error });
-  }
-}
-async function matches(expected: typeof processIdentity.infer) {
-  const current = await identity(expected.pid);
-  return current?.birth === expected.birth && current.commandHash === expected.commandHash;
 }
 // Unix socket names must stay short even when the checkout path is long.
 export async function browserTempPath(manifest: Manifest) {
@@ -407,7 +366,7 @@ async function launch(
   manifest: Manifest,
   args: string[],
   env: NodeJS.ProcessEnv,
-  binary = process.execPath,
+  options: { binary?: string; service?: string } = {},
 ) {
   const output = await import("node:fs");
   const logPath = join(runPath(manifest.id), `process-${manifest.children.length}.log`);
@@ -420,7 +379,7 @@ async function launch(
     }
     position += output.writeSync(descriptor, chunk, 0, chunk.length, position);
   }
-  const child = spawn(binary, args, {
+  const child = spawn(options.binary ?? process.execPath, args, {
     cwd: root,
     env,
     windowsHide: true,
@@ -430,6 +389,7 @@ async function launch(
   child.stderr.on("data", log);
   child.once("close", () => output.closeSync(descriptor));
   if (!child.pid) throw new Error("Unable to launch process");
+  if (options.service) supervisors.get(manifest)?.watch(child, options.service);
   const processRecord = await identity(child.pid);
   if (!processRecord) throw new Error("Child exited before identity capture");
   manifest.children.push(processRecord);
@@ -452,6 +412,7 @@ export async function launchApi(manifest: Manifest, env: NodeJS.ProcessEnv) {
     manifest,
     ["--import", "tsx", "apps/server/src/api.ts"],
     applicationEnvironment(env),
+    { service: "API" },
   );
   manifest.apiPid = child.pid;
   await save(manifest);
@@ -472,6 +433,7 @@ export async function stopApi(manifest: Manifest) {
   const current = await identity(previous.pid);
   if (current) {
     if (!(await matches(previous))) throw new Error("API process ownership mismatch");
+    supervisors.get(manifest)?.expectExit(previous.pid);
     process.kill(previous.pid, "SIGTERM");
     const deadline = Date.now() + 10000;
     while (await matches(previous)) {
@@ -492,6 +454,7 @@ export async function stopSimulator(manifest: Manifest) {
   if (!previous) throw new Error("Simulator process not recorded");
   if (await identity(previous.pid)) {
     if (!(await matches(previous))) throw new Error("Simulator process ownership mismatch");
+    supervisors.get(manifest)?.expectExit(previous.pid);
     process.kill(previous.pid, "SIGTERM");
     const deadline = Date.now() + 10000;
     while (await matches(previous)) {
@@ -507,6 +470,7 @@ export async function launchSimulator(manifest: Manifest, env: NodeJS.ProcessEnv
     manifest,
     ["--import", "tsx", "apps/simulator/src/api.ts"],
     simulatorEnvironment(env),
+    { service: "Payment simulator" },
   );
   manifest.simulatorPid = child.pid;
   await save(manifest);
@@ -549,6 +513,7 @@ export async function stopRefundWorker(manifest: Manifest) {
   if (current) {
     if (current.birth !== previous.birth || current.commandHash !== previous.commandHash)
       throw new Error("Refund worker ownership mismatch");
+    supervisors.get(manifest)?.expectExit(previous.pid);
     process.kill(previous.pid, "SIGTERM");
     const deadline = Date.now() + 10000;
     while (await matches(previous)) {
@@ -564,6 +529,7 @@ export async function launchRefundWorker(manifest: Manifest, env: NodeJS.Process
     manifest,
     ["--import", "tsx", "apps/server/src/worker.ts"],
     applicationEnvironment(env),
+    { service: "Refund worker" },
   );
   manifest.workerPid = worker.pid;
   await save(manifest);
@@ -574,6 +540,7 @@ export async function crashRefundWorker(manifest: Manifest) {
     throw new Error("Crash fixture requires a disposable test run");
   const worker = manifest.children.findLast((child) => child.pid === manifest.workerPid);
   if (!worker || !(await matches(worker))) throw new Error("Refund worker ownership mismatch");
+  supervisors.get(manifest)?.expectExit(worker.pid);
   process.kill(worker.pid, "SIGKILL");
   const deadline = Date.now() + 5000;
   while (await matches(worker)) {
@@ -646,15 +613,12 @@ export async function runEnvironment(
     }
     throw new Error("Configured service ports must be distinct");
   }
-  const dbPort = await assign(mode === "dev" ? Number(process.env.DB_PORT ?? 55432) : 0);
-  const apiPort = await assign(mode === "dev" ? Number(process.env.API_PORT ?? 4321) : 0);
-  const webPort = await assign(mode === "dev" ? Number(process.env.WEB_PORT ?? 4320) : 0);
-  const simulatorPort = await assign(
-    mode === "dev" ? Number(process.env.SIMULATOR_PORT ?? 4322) : 0,
-  );
-  const simulatorDbPort = await assign(
-    mode === "dev" ? Number(process.env.SIMULATOR_DB_PORT ?? 55433) : 0,
-  );
+  const ports = mode === "dev" ? developmentPorts() : undefined;
+  const dbPort = await assign(ports?.db ?? 0);
+  const apiPort = await assign(ports?.api ?? 0);
+  const webPort = await assign(ports?.web ?? 0);
+  const simulatorPort = await assign(ports?.simulator ?? 0);
+  const simulatorDbPort = await assign(ports?.simulatorDb ?? 0);
   const subnet = chooseSubnet();
   await mkdir(directory);
   const manifest: Manifest = {
@@ -708,12 +672,22 @@ export async function runEnvironment(
   );
   await save(manifest);
   let cleaning: Promise<void> | undefined;
-  const finish = () => (cleaning ??= cleanup(manifest, true));
+  const finish = () => {
+    supervisor.close();
+    cleaning ??= cleanup(manifest, true);
+    return cleaning;
+  };
   const stopPath = join(directory, "stop-request");
   let requestStop = () => {};
   const stopped = new Promise<void>((accept) => {
     requestStop = accept;
   });
+  let serviceFailure: Error | undefined;
+  const supervisor = superviseServices((error) => {
+    serviceFailure ??= error;
+    requestStop();
+  });
+  supervisors.set(manifest, supervisor);
   let currentJob: Promise<void> | undefined;
   watchFile(stopPath, { interval: 200 }, (info) => {
     if (info.nlink > 0) requestStop();
@@ -737,7 +711,10 @@ export async function runEnvironment(
   process.once("SIGTERM", interrupted);
   try {
     const lease = windows
-      ? await launch(manifest, ["-d", "Ubuntu", "--exec", "sleep", "infinity"], env, "wsl.exe")
+      ? await launch(manifest, ["-d", "Ubuntu", "--exec", "sleep", "infinity"], env, {
+          binary: "wsl.exe",
+          service: "WSL keepalive",
+        })
       : undefined;
     if (lease) {
       manifest.keepalivePid = lease.pid;
@@ -778,6 +755,7 @@ export async function runEnvironment(
       manifest,
       ["--import", "tsx", "apps/simulator/src/api.ts"],
       simulatorEnvironment(env),
+      { service: "Payment simulator" },
     );
     manifest.simulatorPid = simulator.pid;
     await save(manifest);
@@ -791,6 +769,7 @@ export async function runEnvironment(
             manifest,
             ["--import", "tsx", "apps/server/src/worker.ts"],
             applicationEnvironment(env),
+            { service: "Refund worker" },
           )
         : undefined;
     if (worker) {
@@ -800,6 +779,7 @@ export async function runEnvironment(
     }
     if (process.env.RETURNS_INJECT_STARTUP_FAILURE === "1")
       throw new Error("Injected startup failure");
+    if (serviceFailure) throw serviceFailure;
     manifest.state = "running";
     await save(manifest);
     if (process.env.RETURNS_VERIFY_HOLD === "1") await stopped;
@@ -813,29 +793,19 @@ export async function runEnvironment(
         env,
       );
     else {
-      const api = await launchApi(manifest, env);
-      const web = await launch(
+      await launchApi(manifest, env);
+      await launch(
         manifest,
         ["node_modules/vite/bin/vite.js", "--config", "apps/web/vite.config.ts"],
         applicationEnvironment(env),
+        { service: "Web" },
       );
       console.log(
         `Web http://127.0.0.1:${webPort}; API http://127.0.0.1:${apiPort}; simulator ${env.SIMULATOR_URL}; ${id}`,
       );
-      await Promise.race([
-        stopped,
-        new Promise<void>((_, reject) => {
-          for (const child of [
-            api,
-            web,
-            simulator,
-            ...(worker ? [worker] : []),
-            ...(lease ? [lease] : []),
-          ])
-            child.once("exit", (code) => reject(new Error(`Service exited (${code})`)));
-        }),
-      ]);
+      await stopped;
     }
+    if (serviceFailure) throw serviceFailure;
   } catch (error) {
     manifest.state = "failed";
     console.error(
@@ -880,7 +850,7 @@ async function main() {
   const action = process.argv[2] ?? "doctor";
   if (action === "doctor") {
     await preflight();
-    for (const port of [4320, 4321, 4322, 55432, 55433]) await freePort(port);
+    for (const port of doctorPorts(process.argv.slice(3))) await freePort(port);
     return;
   }
   if (action === "integration" || action === "verify" || action === "dev") {
@@ -946,6 +916,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 export type { Manifest };
 export {
+  chooseSubnet,
   cleanup,
   docker,
   foreground,

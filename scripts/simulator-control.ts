@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -9,8 +8,9 @@ import {
   simulatorHealth,
 } from "../packages/contracts/src/payment.ts";
 import { identity, manifestType, root, runPath } from "./environment.ts";
+import { workspaceIdentity } from "./environment-config.ts";
 
-const runId = `returns-dev-${createHash("sha256").update(root.toLowerCase()).digest("hex").slice(0, 12)}`;
+const runId = `returns-dev-${workspaceIdentity(root)}`;
 const directory = runPath(runId);
 if (!existsSync(join(directory, "manifest.json")))
   throw new Error("Start this checkout with pnpm dev first");

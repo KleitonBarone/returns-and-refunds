@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { eq, sql } from "drizzle-orm";
 import { connectDatabase } from "../../apps/server/src/db.ts";
@@ -275,5 +276,78 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
     await persona(page, "support-other", "support");
     await expect(page.getByRole("heading", { name: "No return requests yet" })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Return .*NL-1042/ })).toHaveCount(0);
+  });
+
+  test("late success refreshes an unknown refund and its queue without a manual lookup", async ({
+    page,
+  }) => {
+    await control("payments", {
+      merchantId: "northline",
+      paymentRef: "payment-order-1043",
+      mode: "drop_response",
+      responseDelayMs: 0,
+      eventDelayMs: 60000,
+      eventCopies: 1,
+    });
+    // Prepare a separate order through real HTTP; the assertion exercises browser polling.
+    async function post(path: string, data: unknown) {
+      const response = await page.request.post(`/api/${path}`, {
+        data,
+        headers: { origin: `http://127.0.0.1:${manifest.webPort}` },
+      });
+      expect(response.ok(), `POST ${path} returned ${response.status()}`).toBe(true);
+      return response;
+    }
+    await post("session", { personaId: "customer-leo" });
+    const created = returnDetailContract.assert(
+      await (
+        await post("returns", {
+          orderId: "order-1043",
+          requestKey: randomUUID(),
+          reason: "The cap does not fit.",
+          items: [{ lineId: "order-1043-cap", quantity: 1 }],
+        })
+      ).json(),
+    );
+    for (const [personaId, action, expectedStatus] of [
+      ["support-ava", "approve", "requested"],
+      ["warehouse-jules", "receive", "approved"],
+      ["warehouse-jules", "pass_inspection", "received"],
+    ] as const) {
+      await post("session", { personaId });
+      await post(`returns/${created.id}/actions`, {
+        action,
+        expectedStatus,
+        reason: "Accept the returned cap.",
+        correlationId: randomUUID(),
+      });
+    }
+    await post("session", { personaId: "finance-sam" });
+    await post(`returns/${created.id}/refund`, {
+      expectedAmountMinor: 5000,
+      reason: "Refund the accepted cap.",
+      correlationId: randomUUID(),
+    });
+    await page.goto("/");
+    const row = page.getByRole("button", {
+      name: new RegExp(`^Return ${created.id.slice(0, 8).toUpperCase()} for NL-1043,`),
+    });
+    await row.click();
+    const panel = page.getByRole("region", { name: "Refund status" });
+    await expect(panel.getByText("Outcome unknown", { exact: true })).toBeVisible();
+    const provider = simulatorDiagnostics.assert(await control("diagnostics"));
+    const receipt = provider.refunds.find((refund) => refund.paymentRef === "payment-order-1043");
+    expect(receipt).toBeDefined();
+    await control("events", { refundId: receipt?.id, status: "succeeded", delayMs: 0, copies: 1 });
+    await control("deliver", { refundId: receipt?.id });
+    await expect(panel.getByText("Confirmed", { exact: true })).toBeVisible();
+    await expect(row).toContainText("Refund confirmed");
+    const final = returnDetailContract.assert(
+      await (await page.request.get(`/api/returns/${created.id}`)).json(),
+    );
+    expect(final.status).toBe("closed");
+    expect(final.refund?.status).toBe("succeeded");
+    const diagnostics = simulatorDiagnostics.assert(await control("diagnostics"));
+    expect(diagnostics.ledger.filter((entry) => entry.refundId === receipt?.id)).toHaveLength(1);
   });
 }

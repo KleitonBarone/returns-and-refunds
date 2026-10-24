@@ -44,6 +44,7 @@ markers. The [scenario guide](docs/repeatable-demo.md) explains its exact scope.
 For progress that survives shutdown, use `pnpm dev` and open
 `http://127.0.0.1:4320`. Ctrl+C or `pnpm dev:down` stops its services while retaining
 both development volumes. `.env.example` lists optional port and clock overrides.
+`pnpm env:doctor --dev` checks those configured ports; the default doctor allows assigned ports.
 Startup creates missing fixtures and preserves existing returns.
 
 ## Verify it
@@ -76,7 +77,7 @@ Drizzle, and PostgreSQL enforce the workflow. A PostgreSQL outbox avoids adding 
 broker. A separate HTTP payment simulator owns its persistent ledger; the app
 cannot access its SQL database. Integer minor-unit amounts, purchased-unit claims,
 and order locks protect partial refunds. Unknown outcomes retain their reservation
-until authoritative lookup resolves the original key.
+until an authoritative lookup or signed event resolves the original refund.
 
 See the [architecture](docs/architecture.md), [refund processing](docs/refund-processing.md),
 [recovery contract](docs/refund-recovery.md), and [simulator limits](docs/payment-simulator.md).
@@ -88,3 +89,5 @@ authentication, real payment adapter, shipping integration, or public deployment
 Terminally rejected refunds conservatively retain capacity; this demo has no
 manual-resolution workflow. Simulator verification makes no claim about a real
 provider's settlement, retention, or idempotency contract.
+
+Released under the [MIT license](LICENSE).

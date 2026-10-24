@@ -255,7 +255,10 @@ export function Workspace({ actor }: { actor: Actor }) {
     queryFn: async () => returnsContract.assert(await api("/returns")),
     refetchInterval: (query) =>
       query.state.data?.some(
-        (item) => item.refundStatus === "pending" || item.refundStatus === "processing",
+        (item) =>
+          item.refundStatus === "pending" ||
+          item.refundStatus === "processing" ||
+          item.refundStatus === "unknown",
       )
         ? 1000
         : false,
@@ -266,7 +269,8 @@ export function Workspace({ actor }: { actor: Actor }) {
     enabled: Boolean(returnId),
     refetchInterval: (query) =>
       query.state.data?.refund?.status === "pending" ||
-      query.state.data?.refund?.status === "processing"
+      query.state.data?.refund?.status === "processing" ||
+      query.state.data?.refund?.status === "unknown"
         ? 1000
         : false,
   });
