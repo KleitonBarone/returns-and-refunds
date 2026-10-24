@@ -15,6 +15,7 @@ import { simulatorHealth } from "../packages/contracts/src/payment.ts";
 import { browserProcessRecord } from "./browser-contracts.ts";
 import { prepareDatabase } from "./database.ts";
 import { developmentPorts, doctorPorts, workspaceIdentity } from "./environment-config.ts";
+import { writeJson } from "./json-file.ts";
 import { identity, matches, processIdentity, superviseServices } from "./processes.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -144,10 +145,7 @@ function runPath(id: string) {
   return join(runsRoot, id);
 }
 async function save(manifest: Manifest) {
-  await writeFile(
-    join(runPath(manifest.id), "manifest.json"),
-    `${JSON.stringify(manifest, null, 2)}\n`,
-  );
+  await writeJson(join(runPath(manifest.id), "manifest.json"), manifest);
 }
 function compose(manifest: Manifest, args: string[]) {
   return docker([

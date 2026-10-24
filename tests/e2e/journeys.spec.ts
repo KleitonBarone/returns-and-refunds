@@ -278,9 +278,9 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
     await expect(page.getByRole("button", { name: /^Return .*NL-1042/ })).toHaveCount(0);
   });
 
-  test("late success refreshes an unknown refund and its queue without a manual lookup", async ({
+  test("cached refund survives an outage and refreshes after late success", async ({
     page,
-  }) => {
+  }, info) => {
     await control("payments", {
       merchantId: "northline",
       paymentRef: "payment-order-1043",
@@ -335,6 +335,22 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
     await row.click();
     const panel = page.getByRole("region", { name: "Refund status" });
     await expect(panel.getByText("Outcome unknown", { exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await serviceCommand("stop-api");
+    try {
+      const alert = page.getByRole("alert");
+      await expect(alert).toContainText("These are the last loaded details", { timeout: 15000 });
+      await expect(panel.getByText("Outcome unknown", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Try again", exact: true })).toBeVisible();
+      await page.screenshot({
+        path: info.outputPath("cached-return-unavailable-narrow.png"),
+        fullPage: true,
+      });
+    } finally {
+      await serviceCommand("start-api");
+    }
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await page.setViewportSize({ width: 1440, height: 1000 });
     const provider = simulatorDiagnostics.assert(await control("diagnostics"));
     const receipt = provider.refunds.find((refund) => refund.paymentRef === "payment-order-1043");
     expect(receipt).toBeDefined();

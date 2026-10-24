@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
@@ -77,6 +78,64 @@ describe("customer return requests", () => {
       payload: { ...payload, reason: "Different reason" },
     });
     expect(changed.statusCode).toBe(409);
+  });
+  it("replays retained pre-canonical requests without accepting changed content", async () => {
+    const order = await fixture();
+    const otherOrder = await fixture();
+    const headers = await login("customer-maya");
+    const original = input(order);
+    const payload = {
+      ...original,
+      items: original.items.map(({ lineId, quantity }) => ({ quantity, lineId })),
+    };
+    const first = await app.inject({ method: "POST", url: "/api/returns", headers, payload });
+    const request = returnDetailContract.assert(first.json());
+    const [saved] = await db.select().from(returnRequests).where(eq(returnRequests.id, request.id));
+    const legacy = createHash("sha256")
+      .update(
+        JSON.stringify({
+          orderId: payload.orderId,
+          reason: payload.reason.trim(),
+          items: payload.items,
+        }),
+      )
+      .digest("hex");
+    expect(legacy).not.toBe(saved?.fingerprint);
+    await db
+      .update(returnRequests)
+      .set({ fingerprint: legacy })
+      .where(eq(returnRequests.id, request.id));
+    for (const changed of [
+      { ...payload, reason: "A different request" },
+      { ...payload, items: [{ quantity: 2, lineId: order.lineId }] },
+      { ...payload, orderId: otherOrder.id },
+    ]) {
+      const result = await app.inject({
+        method: "POST",
+        url: "/api/returns",
+        headers,
+        payload: changed,
+      });
+      expect(result.statusCode).toBe(409);
+    }
+    for (const items of [payload.items, original.items]) {
+      const replay = await app.inject({
+        method: "POST",
+        url: "/api/returns",
+        headers,
+        payload: { ...payload, items },
+      });
+      expect(replay.statusCode).toBe(201);
+      expect(returnDetailContract.assert(replay.json()).id).toBe(request.id);
+    }
+    const [upgraded] = await db
+      .select()
+      .from(returnRequests)
+      .where(eq(returnRequests.id, request.id));
+    expect(upgraded?.fingerprint).toBe(saved?.fingerprint);
+    expect(
+      await db.select().from(auditEntries).where(eq(auditEntries.returnId, request.id)),
+    ).toHaveLength(1);
   });
   it("blocks expired/future deliveries and malformed or excessive quantities", async () => {
     const headers = await login("customer-maya");

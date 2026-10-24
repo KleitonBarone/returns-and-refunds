@@ -15,6 +15,13 @@ restarts and scenario resets remain supported. Process ownership and service
 monitoring live in `scripts/processes.ts`; checkout identity and port settings
 live in `scripts/environment-config.ts`.
 
+Replaying a request saved before fingerprint canonicalization validates its
+stored reason and item quantities, then upgrades its hash under the order lock.
+Changed content still conflicts. Run manifests publish through atomic replacement,
+with bounded retries for transient Windows file locks. A failed background detail
+refresh keeps the last loaded return visible alongside an error and retry control,
+including at mobile widths.
+
 The browser suite also checks an unknown refund's late signed success without
 manual lookup. It verifies that both its detail and queue refresh, the return
 closes, and the provider still has one ledger entry for that refund.

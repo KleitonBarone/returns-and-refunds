@@ -461,6 +461,17 @@ export function Workspace({ actor }: { actor: Actor }) {
               {customer ? "Back to orders and returns" : "Back to return queue"}
             </button>
           )}
+          {detail.isError && (
+            <div role="alert" className="error">
+              {detail.data && (
+                <p>These are the last loaded details. The return's status may have changed.</p>
+              )}
+              <p>{detail.error.message}</p>
+              <button type="button" onClick={() => detail.refetch()}>
+                Try again
+              </button>
+            </div>
+          )}
           {order ? (
             <ReturnForm
               key={order.id}
@@ -487,14 +498,6 @@ export function Workspace({ actor }: { actor: Actor }) {
                   ? "Select an order to see its return window and available items, or open a return to follow its progress."
                   : "Its items, policy, and decision history will appear here."}
               </p>
-              {detail.isError && (
-                <p role="alert" className="error">
-                  {detail.error.message}
-                  <button type="button" onClick={() => detail.refetch()}>
-                    Try again
-                  </button>
-                </p>
-              )}
             </section>
           )}
         </div>

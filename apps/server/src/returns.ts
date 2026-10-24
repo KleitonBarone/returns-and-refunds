@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNull } from "drizzle-orm";
 import type { Actor, requestInput } from "../../../packages/contracts/src/index.ts";
 import type { Database } from "./db.ts";
 import { eligibility, HttpError } from "./domain.ts";
@@ -171,6 +171,20 @@ export async function returnDetail(db: Database, actor: Actor, id: string) {
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
 }
+function requestFingerprint(input: Omit<typeof requestInput.infer, "requestKey">) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        orderId: input.orderId,
+        reason: input.reason.trim(),
+        items: [...input.items]
+          .sort((a, b) => a.lineId.localeCompare(b.lineId))
+          .map(({ lineId, quantity }) => ({ lineId, quantity })),
+      }),
+    )
+    .digest("hex");
+}
+
 export async function requestReturn(
   db: Database,
   actor: Actor,
@@ -188,17 +202,7 @@ export async function requestReturn(
     new Set(input.items.map((item) => item.lineId)).size !== input.items.length
   )
     throw new HttpError(422, "Select each order line once with a positive quantity");
-  const fingerprint = createHash("sha256")
-    .update(
-      JSON.stringify({
-        orderId: input.orderId,
-        reason: input.reason.trim(),
-        items: [...input.items]
-          .sort((a, b) => a.lineId.localeCompare(b.lineId))
-          .map(({ lineId, quantity }) => ({ lineId, quantity })),
-      }),
-    )
-    .digest("hex");
+  const fingerprint = requestFingerprint(input);
   const id = await db.transaction(async (tx) => {
     const [order] = await tx
       .select()
@@ -222,8 +226,24 @@ export async function requestReturn(
         ),
       );
     if (existing) {
-      if (existing.fingerprint !== fingerprint)
-        throw new HttpError(409, "This submission key already belongs to a different request");
+      if (existing.fingerprint !== fingerprint) {
+        // Older hashes depended on JSON key order. Rebuild their meaning from the saved claims.
+        const items = await tx
+          .select({ lineId: orderUnits.lineId, quantity: count() })
+          .from(returnUnits)
+          .innerJoin(orderUnits, eq(orderUnits.id, returnUnits.unitId))
+          .where(eq(returnUnits.returnId, existing.id))
+          .groupBy(orderUnits.lineId);
+        if (
+          requestFingerprint({ orderId: existing.orderId, reason: existing.reason, items }) !==
+          fingerprint
+        )
+          throw new HttpError(409, "This submission key already belongs to a different request");
+        await tx
+          .update(returnRequests)
+          .set({ fingerprint })
+          .where(eq(returnRequests.id, existing.id));
+      }
       return existing.id;
     }
     const policy = eligibility(order.deliveredAt, now);
