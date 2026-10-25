@@ -94,5 +94,6 @@ cleanup snapshot. It accepts no further reset commands while stopping.
 The latest credential-free summaries replace `.local/demo-last-run.json` and
 `.local/demo-last-verification.json`. Each stores only one bounded scenario run,
 including IDs, amounts, ledger counts, event results, source SHA, and tool versions.
-Checked-in financial evidence is linked from the delivery plan. Reset is separate
-from normal development shutdown, automatic test teardown, and artifact cleanup.
+The [checked-in scenario record](evidence/repeatable-financial.json) identifies
+the source revision it verified. Reset is separate from normal development
+shutdown, automatic test teardown, and artifact cleanup.

@@ -67,8 +67,8 @@ checks cover authorization, competing reservations, capture limits, atomic audit
 worker leases, and signed-event races. Browser journeys complete the workflow
 through the real UI, restart services, and compare the independent provider ledger.
 `demo:verify` compares two scenario cycles and checks reset refusals and partial
-commit failure. [Recorded evidence](docs/evidence/repeatable-verification.md)
-contains actual IDs and amounts.
+commit failure. The [scenario record](docs/evidence/repeatable-financial.json)
+contains actual IDs and amounts from its recorded source revision.
 
 ## How it works
 
@@ -81,8 +81,8 @@ until an authoritative lookup or signed event resolves the original refund.
 
 See the [architecture](docs/architecture.md), [refund processing](docs/refund-processing.md),
 [recovery contract](docs/refund-recovery.md), and [simulator limits](docs/payment-simulator.md).
-The [handoff](HANDOFF.md) covers screenshot capture, clean-checkout verification, environment
-recovery, and retained disk usage.
+The [development guide](docs/development.md) covers inspection, migrations,
+screenshot capture, and environment cleanup.
 
 This is portfolio software with local persona sessions. It has no production
 authentication, real payment adapter, shipping integration, or public deployment.

@@ -68,9 +68,9 @@ An actual API outage shows a retry action; restarting the API restores the queue
 
 ## Reproduce and inspect
 
-Run `pnpm browser:install`, then `pnpm test:e2e`. Both journeys use fresh paired
+Run `pnpm browser:install`, then `pnpm test:e2e`. The journeys use fresh paired
 databases and the real UI, API, worker, and simulator. Their screenshots and
-financial assertions replace `.local/e2e-last-success`. The [handoff](../HANDOFF.md)
+financial assertions replace `.local/e2e-last-success`. The [development guide](development.md)
 explains capture filenames, retention, and verified cleanup.
 
 The [capture record](evidence/screenshot-capture.json) identifies the run, source,

@@ -41,8 +41,8 @@ late signed processing-event copies. The app recovered the same operation after
 real service restarts. The simulator held one USD ledger entry of 3500 minor units,
 or $35, and the app held one successful business audit. Two tees remained
 available. The [screenshot walkthrough](walkthrough.md) follows that same return and
-links its capture provenance. Earlier keyboard and narrow-layout checks remain
-documented in the [browser verification](evidence/browser-verification.md).
+links its capture provenance. These records describe their original source
+revisions; run the browser suite to verify the current checkout.
 
 The [repeatable verification](evidence/repeatable-financial.json) runs a broader
 set twice. Each cycle has three successful provider entries totaling 10500.

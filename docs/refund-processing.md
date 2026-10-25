@@ -55,7 +55,7 @@ become unknown. The HTTP timeout defaults to 750 milliseconds; the lease is long
 than the maximum configurable five-second timeout.
 
 The finance and customer views show the same refund status and confirmed receipt.
-Queued and processing operations refresh automatically. Finance can
+Queued, processing, and unknown operations refresh automatically. Finance can
 [check an uncertain refund](refund-recovery.md) by its original key and explicitly
 retry only after lookup confirms it is missing. Signed events also confirm status;
 unavailable or conflicting observations keep the operation reserved.
@@ -75,7 +75,7 @@ has not acknowledged it. It advances only that fixture's lease, starts a fresh
 worker, and verifies the original operation succeeds with one ledger entry and
 one success audit. This also verifies worker readiness and teardown after failed
 startup and abrupt supervisor termination. Test data and processes are removed;
-normal development shutdown retains both project demo volumes.
+normal development shutdown retains both development volumes.
 
 These checks demonstrate this local simulator contract. They make no claim about
 a real payment provider, card settlement, or production authentication.

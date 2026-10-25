@@ -2,14 +2,15 @@
 
 The simulator is a separate loopback HTTP service with its own PostgreSQL cluster,
 credentials, migrations, captured payments, idempotency records, ledger, and event
-deliveries. The returns API and future worker receive its HTTP credential, but no
+deliveries. The returns API and worker receive its HTTP credential, but no
 simulator SQL or control credential. This is configuration isolation within a local
 demo, not an operating-system security boundary between processes run by one user.
 
 `pnpm dev` starts it on `127.0.0.1:4322` and its database on `127.0.0.1:55433`.
 Both use the same run identity as the application. `pnpm dev:down` removes their
-processes, containers, and network while preserving both demo volumes. Integration
-and lifecycle runs use unique identities, ports, credentials, and disposable volumes.
+processes, containers, and network while preserving both development volumes.
+Integration and lifecycle runs use unique identities, ports, credentials, and
+disposable volumes.
 
 ## Local controls
 
@@ -119,30 +120,27 @@ Authenticated control endpoints are:
 | `POST /control/deliver` | Send up to ten due deliveries, optionally filtered by refund ID. |
 | `GET /control/diagnostics` | Inspect up to 100 receipts, ledger rows, and delivery states. The response excludes credentials. |
 
-The application event consumer and refund worker arrive in deliveries 5–6. Until
-then, automatic events sent to the application receive 404 and remain queued.
-
-## Persistence, reset, and evidence
+## Persistence, reset, and verification
 
 Startup only inserts missing captures. It never deletes keys, receipts, ledger
 entries, or delivery progress. The four initial captures match the fictional
 orders at 15,500 USD minor units each. Provider tables live only in the simulator
 database. Application SQL credentials fail authentication against that cluster.
 
-There is no standalone ledger reset command. Delivery 8 will add the guarded,
-paired application/provider reset after it can quiesce workers and deliveries and
-verify both demo identities. Test teardown removes only its own disposable pair.
+There is no standalone ledger reset command. The [disposable demo reset](repeatable-demo.md)
+quiesces the API, worker, and simulator and verifies both database identities
+before clearing the paired application/provider data. It cannot reset retained
+development data. Test teardown removes only its own disposable pair.
 
-Local verification on October 21, 2026 passed 29 PostgreSQL/HTTP integration checks
-and four unit checks. Simulator checks cover replay, changed payloads, concurrency,
+`pnpm test:integration` covers replay, changed payloads, concurrency,
 capture limits, ownership, integer/currency validation, terminal rejection,
 pre-write retry, atomic rollback when event scheduling fails, dropped/delayed
 responses, reopened server/database connections,
 raw signed duplicates, delayed delivery, delivery backoff, stale-sender fencing,
-and SQL/control credential isolation. Lifecycle verification passed two fresh
+and SQL/control credential isolation. `pnpm test:environment` checks fresh
 environments, migration/seed preservation, an actual simulator process restart
 with one retained ledger entry and two pending events, failed-startup cleanup,
 abrupt interruption, abandoned-run recovery, and preservation of unrelated resources.
 
-These results describe this simulator contract. They do not certify behavior of
+These checks describe this simulator contract. They do not certify behavior of
 Stripe or another payment provider.
