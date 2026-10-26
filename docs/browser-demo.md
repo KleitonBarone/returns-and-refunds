@@ -35,14 +35,17 @@ The repository's [vercel.json](../vercel.json) supplies:
 
 - Framework preset: Vite.
 - Root directory: repository root, leave the subdirectory field empty.
-- Install command: `pnpm install --frozen-lockfile`.
-- Build command: `pnpm build:demo`.
+- Install command: `npx --yes pnpm@11.23.0 install --frozen-lockfile`.
+- Build command: `npx --yes pnpm@11.23.0 run build:demo`.
 - Output directory: `dist/demo`.
 - Node.js: 24.x, as required by the package engines.
 
 No database, Blob integration, function, daemon, secret, or environment variable
 is required. The output contains only static HTML, CSS, and JavaScript. The full
 backend stays in the repository and is not deployed by this configuration.
+Both commands select the pinned package manager explicitly. Vercel's
+[custom install overrides](https://vercel.com/docs/package-managers) can otherwise
+choose an older pnpm; no Corepack environment flag is needed here.
 The application uses one page; switching personas or selecting returns does not
 create server routes that need a rewrite.
 
@@ -105,6 +108,7 @@ leases, independent payment settlement, or crash recovery guarantees.
    `Add a browser-only portfolio demo`, push to main following the current repository
    workflow, and verify the exact commit's CI. No PR or public deployment is planned
    for this delivery. Hand over the Vercel import settings after all gates pass.
+   Follow-up fixes retain their own commits when verification finds a deployment issue.
 
 ## Testing and cleanup
 

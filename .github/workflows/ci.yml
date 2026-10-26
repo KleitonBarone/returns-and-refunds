@@ -18,12 +18,13 @@ jobs:
         with:
           node-version: 24.20.0
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: npx --yes pnpm@11.23.0 install --frozen-lockfile
       - run: pnpm browser:install --with-deps
       - run: pnpm check
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm test:demo
+      - run: npx --yes pnpm@11.23.0 run build:demo
+      - run: pnpm exec playwright test --config playwright.demo.config.ts
       - run: pnpm test:integration
       - run: pnpm test:environment
       - run: pnpm test:e2e
