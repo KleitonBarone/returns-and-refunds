@@ -1,5 +1,9 @@
 # Architecture and transaction boundaries
 
+This describes the full application. The [browser demo](browser-demo.md) uses the
+same interface with a localStorage-backed workflow simulation. Its static build
+does not run the services or establish the transaction guarantees described here.
+
 ```mermaid
 flowchart LR
     UI[React customer and operator views] --> API[Fastify API]

@@ -1,6 +1,6 @@
 # Returns and refunds
 
-A local return and refund application for a fictional clothing merchant. Customers
+A return and refund workspace for a fictional clothing merchant. Customers
 request part of an order; support approves it, the warehouse records inspection,
 and finance confirms the refund. The interesting case is a successful payment
 whose response disappears: the app must recover the original refund without
@@ -11,83 +11,90 @@ or [read the recovery case study](docs/case-study.md).
 
 ![Finance confirms the original partial refund after recovery](docs/evidence/screenshots/05-refund-recovered.png)
 
-## Try it locally
+## Try the browser demo
 
-Use **Node 24.20.0**, **pnpm 11.23.0**, and Docker Engine with Compose. On Windows,
-the application runs with Windows Node/pnpm and Docker runs in WSL Ubuntu using
-its default Unix socket. Docker Desktop is unnecessary. Linux uses native Docker.
-Allow at least 2 GiB free disk space. No external account or payment credentials
-are needed.
+Use **Node 24.20.0** and **pnpm 11.23.0**:
 
 ```sh
 pnpm install --frozen-lockfile
+pnpm dev:demo
+```
+
+Open the printed URL. Choose Maya to request a return, Ava for approval, Jules for
+inspection, and Sam for finance. **Explore refund recovery** opens a prepared
+lost-response case. The payment-outcome selector lets new refunds confirm normally
+or lose their simulated response. All orders and payments are fictional.
+
+This mode runs entirely in the browser and saves progress in localStorage. Each
+visitor has independent data and a reset button. No Docker, API server, hosted
+database, Blob storage, or credentials are needed. If storage is unavailable,
+progress lasts only for the current tab.
+
+Run `pnpm build:demo` to create `dist/demo`. The checked-in Vercel configuration
+deploys this static version. The [browser demo guide](docs/browser-demo.md) includes
+the delivery plan, verification, and exact Vercel import settings.
+
+## Run the full application
+
+The complete backend uses Docker Engine with Compose. Windows runs Node/pnpm
+natively and Docker in WSL Ubuntu through its default Unix socket; Docker Desktop
+is unnecessary. Linux uses native Docker. Allow at least 2 GiB free disk space.
+
+```sh
 pnpm env:doctor
 pnpm demo:run
 ```
 
-Open the printed loopback URL. Setup creates separate application and simulator
-databases, applies migrations, seeds scenarios, and starts the real services on
-assigned ports. Choose Sam and open `DEMO-UNKNOWN`, add a recovery reason, then
-choose **Check payment status**. Maya sees the same history and remaining units.
-Ava handles support; Jules handles receipt and inspection. Noah and Robin belong
-to a separate merchant.
+This starts real services on assigned loopback ports, with separate application
+and payment-simulator databases, migrations, and seeded scenarios. As Sam, open
+`DEMO-UNKNOWN`, record a reason, and choose **Check payment status**. Maya sees
+the same history and remaining units. The fixture clock is October 1, 2026.
 
-The fixture clock is October 1, 2026. Cases include normal and partial refunds,
-expiry, failed inspection, a pre-write retry, an unknown result, previously
-returned units, and merchant isolation. All orders and payments are synthetic.
+Ctrl+C removes this disposable environment. `pnpm demo:reset <printed-run-id>`
+rebuilds its scenarios while running. The [scenario guide](docs/repeatable-demo.md)
+explains reset scope, failure cases, and merchant isolation.
 
-Ctrl+C stops this disposable demo and removes its databases. To rebuild its
-scenarios while it runs, use `pnpm demo:reset <printed-run-id>` in another terminal,
-then reload the browser. Reset verifies both database identities and demo-only
-markers. The [scenario guide](docs/repeatable-demo.md) explains its exact scope.
-
-For progress that survives shutdown, use `pnpm dev` and open
-`http://127.0.0.1:4320`. Ctrl+C or `pnpm dev:down` stops its services while retaining
-both development volumes. `.env.example` lists optional port and clock overrides.
-`pnpm env:doctor --dev` checks those configured ports; the default doctor allows assigned ports.
-Startup creates missing fixtures and preserves existing returns.
+For retained progress, use `pnpm dev` at `http://127.0.0.1:4320`. Ctrl+C or
+`pnpm dev:down` keeps both development volumes. Startup preserves existing returns.
+`.env.example` lists optional ports and clock settings; `pnpm env:doctor --dev`
+checks configured ports. The [development guide](docs/development.md) covers
+inspection, migrations, screenshots, and scoped cleanup.
 
 ## Verify it
 
 ```sh
 pnpm check
 pnpm test
+pnpm browser:install
+pnpm test:demo
 pnpm build
 pnpm test:integration
 pnpm test:environment
-pnpm browser:install
 pnpm test:e2e
 pnpm test:e2e:environment
 pnpm demo:verify
 ```
 
-Run the lifecycle suites sequentially. They create fresh paired databases and
-verify cleanup after successful, failed, and interrupted execution. Integration
-checks cover authorization, competing reservations, capture limits, atomic audits,
-worker leases, and signed-event races. Browser journeys complete the workflow
-through the real UI, restart services, and compare the independent provider ledger.
-`demo:verify` compares two scenario cycles and checks reset refusals and partial
-commit failure. The [scenario record](docs/evidence/repeatable-financial.json)
-contains actual IDs and amounts from its recorded source revision.
+Static browser journeys verify the demo without API calls. Full-stack checks use
+fresh paired databases, real HTTP services, financial assertions, and service
+restarts. Run lifecycle suites sequentially; they verify teardown after success,
+failure, and interruption. CI runs both modes.
 
 ## How it works
 
-React, Vite, Tailwind, and TanStack Query provide the interface. Fastify, ArkType,
-Drizzle, and PostgreSQL enforce the workflow. A PostgreSQL outbox avoids adding a
-broker. A separate HTTP payment simulator owns its persistent ledger; the app
-cannot access its SQL database. Integer minor-unit amounts, purchased-unit claims,
-and order locks protect partial refunds. Unknown outcomes retain their reservation
-until an authoritative lookup or signed event resolves the original refund.
+React, Vite, Tailwind, and TanStack Query share the interface across both modes.
+The full app uses Fastify, ArkType, Drizzle, and PostgreSQL. Purchased-unit claims,
+integer amounts, order locks, and a transactional outbox protect partial refunds.
+A separate HTTP simulator owns an independent persistent payment ledger.
 
-See the [architecture](docs/architecture.md), [refund processing](docs/refund-processing.md),
-[recovery contract](docs/refund-recovery.md), and [simulator limits](docs/payment-simulator.md).
-The [development guide](docs/development.md) covers inspection, migrations,
-screenshot capture, and environment cleanup.
+The [architecture](docs/architecture.md), [processing](docs/refund-processing.md),
+[recovery contract](docs/refund-recovery.md), and [simulator contract](docs/payment-simulator.md)
+explain those guarantees. The browser demo simulates their visible workflow;
+the full implementation and tests demonstrate database and worker behavior.
 
-This is portfolio software with local persona sessions. It has no production
-authentication, real payment adapter, shipping integration, or public deployment.
-Terminally rejected refunds conservatively retain capacity; this demo has no
-manual-resolution workflow. Simulator verification makes no claim about a real
-provider's settlement, retention, or idempotency contract.
+This portfolio has no production authentication, real payment adapter, shipping
+integration, or manual resolution for terminally rejected refunds. Simulator
+verification makes no claim about a real provider's settlement or idempotency
+contract. Deployment is left to the repository owner.
 
 Released under the [MIT license](LICENSE).

@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { sessionContract } from "../../../packages/contracts/src/index.ts";
 import { api } from "./api.ts";
@@ -13,8 +13,12 @@ import { date } from "./format.ts";
 import { Workspace } from "./workspace.tsx";
 import "./style.css";
 
+const browserDemo = import.meta.env.MODE === "demo";
+const DemoTools = browserDemo ? lazy(() => import("./demo/tools.tsx")) : null;
+
 function App() {
   const client = useQueryClient();
+  const [demoVersion, setDemoVersion] = useState(0);
   const session = useQuery({
     queryKey: ["session"],
     queryFn: async () => sessionContract.assert(await api("/session")),
@@ -46,7 +50,8 @@ function App() {
         </div>
         <div className="demo-tools">
           <span className="demo-clock">
-            Local demo · {session.data ? date(session.data.demoNow) : "Connecting"}
+            {browserDemo ? "Browser demo" : "Local demo"} ·{" "}
+            {session.data ? date(session.data.demoNow) : "Connecting"}
           </span>
           <span className="demo-disclosure">Synthetic orders. No real payments.</span>
           <label>
@@ -72,6 +77,20 @@ function App() {
           </label>
         </div>
       </header>
+      {DemoTools && (
+        <Suspense fallback={null}>
+          <DemoTools
+            onReset={async (reset) => {
+              await client.cancelQueries();
+              reset();
+              client.removeQueries({ predicate: (query) => query.queryKey[0] !== "session" });
+              client.setQueryData(["session"], sessionContract.assert(await api("/session")));
+              switchPersona.reset();
+              setDemoVersion((version) => version + 1);
+            }}
+          />
+        </Suspense>
+      )}
       <main id="main" className="app-main" tabIndex={-1}>
         {session.isError ? (
           <section className="empty-detail">
@@ -84,10 +103,14 @@ function App() {
         ) : session.isPending ? (
           <p role="status">Connecting to the workspace…</p>
         ) : session.data.actor ? (
-          <Workspace key={session.data.actor.id} actor={session.data.actor} />
+          <Workspace key={`${session.data.actor.id}-${demoVersion}`} actor={session.data.actor} />
         ) : (
           <section className="welcome">
-            <span className="status status-open">Fictional merchant, real workflow</span>
+            <span className="status status-open">
+              {browserDemo
+                ? "Fictional merchant, simulated workflow"
+                : "Fictional merchant, real workflow"}
+            </span>
             <h1>
               Follow a return.
               <br />
@@ -104,7 +127,27 @@ function App() {
             >
               Open Maya's orders
             </button>
-            <p className="muted small">Synthetic data. Local services. No real payments.</p>
+            {browserDemo && (
+              <>
+                <button
+                  className="recovery-shortcut"
+                  type="button"
+                  onClick={() => switchPersona.mutate("finance-sam")}
+                >
+                  Explore refund recovery
+                </button>
+                <p className="demo-journey">
+                  Start with Maya, then choose Ava for approval, Jules for inspection, and Sam for
+                  the refund. For a prepared lost-response case, open Sam's{" "}
+                  <strong>DEMO-UNKNOWN</strong> return.
+                </p>
+              </>
+            )}
+            <p className="muted small">
+              {browserDemo
+                ? "All demo data stays on your device. No real payments."
+                : "Synthetic data. Local services. No real payments."}
+            </p>
           </section>
         )}
         {switchPersona.isError && (
@@ -120,7 +163,15 @@ const root = document.getElementById("root");
 if (!root) throw new Error("Missing application root");
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: browserDemo
+            ? { queries: { networkMode: "always" }, mutations: { networkMode: "always" } }
+            : undefined,
+        })
+      }
+    >
       <App />
     </QueryClientProvider>
   </StrictMode>,

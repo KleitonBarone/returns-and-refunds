@@ -4,6 +4,10 @@ Start with the [README](../README.md) for prerequisites and the verification
 commands. Use the repository's environment runners so services, credentials,
 databases, and cleanup belong to one recorded run.
 
+This guide covers the full PostgreSQL application. The separate
+[browser demo guide](browser-demo.md) covers static development, testing, and
+Vercel deployment without application services or databases.
+
 ## Choose an environment
 
 | Command | Data and shutdown |

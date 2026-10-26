@@ -23,6 +23,7 @@ jobs:
       - run: pnpm check
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm test:demo
       - run: pnpm test:integration
       - run: pnpm test:environment
       - run: pnpm test:e2e
@@ -38,5 +39,6 @@ jobs:
           path: |
             .local/last-failure.log
             .local/e2e-last-failure/
+            .local/browser-demo-results/
           retention-days: 7
           if-no-files-found: ignore

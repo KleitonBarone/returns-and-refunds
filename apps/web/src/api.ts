@@ -3,6 +3,10 @@ import { type } from "arktype";
 const errorContract = type({ message: "string" });
 
 export async function api(path: string, body?: unknown) {
+  if (import.meta.env.MODE === "demo") {
+    const { demoApi } = await import("./demo/api.ts");
+    return demoApi(path, body);
+  }
   let response: Response;
   try {
     response = await fetch(

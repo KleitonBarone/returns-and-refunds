@@ -205,7 +205,11 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
             Confirm {money(request.amountMinor, request.currency)} refund for {request.orderNumber}?
           </strong>
           <p>{reason.trim()}</p>
-          <p>This sends a refund to the local payment simulator. No real money moves.</p>
+          <p>
+            {import.meta.env.MODE === "demo"
+              ? "This simulates a refund in your browser. No real money moves."
+              : "This sends a refund to the local payment simulator. No real money moves."}
+          </p>
           <div className="action-buttons">
             <button
               type="button"
