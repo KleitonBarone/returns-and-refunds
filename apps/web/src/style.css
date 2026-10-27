@@ -104,13 +104,17 @@ p {
   line-height: 1.6;
 }
 .app-header {
+  background: white;
+  border-bottom: 1px solid #dce4e9;
+}
+.header-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 24px;
   padding: 20px 36px;
-  background: white;
-  border-bottom: 1px solid #dce4e9;
+  max-width: 1360px;
+  margin: auto;
 }
 .brand {
   display: flex;
@@ -126,32 +130,107 @@ p {
   font-size: 12px;
   margin-top: 3px;
 }
-.demo-tools {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-.demo-clock {
+.demo-context {
+  display: grid;
+  gap: 4px;
   font-size: 12px;
   color: #647887;
-}
-.demo-tools label {
-  font-size: 12px;
-  color: #647887;
+  text-align: right;
+  line-height: 1.5;
 }
 select {
   display: block;
   border: 1px solid #ced9e0;
   padding: 7px 10px;
+  min-height: 44px;
+  line-height: 1.4;
   border-radius: 6px;
   color: #253b4b;
   background: white;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .app-main {
   max-width: 1360px;
   margin: auto;
   padding: 36px;
+}
+.workspace-switcher {
+  border-bottom: 1px solid #dce4e9;
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+}
+.switcher-heading h2 {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+.switcher-heading p {
+  font-size: 13px;
+  color: #647887;
+  margin-bottom: 16px;
+}
+.workspace-choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.workspace-choice {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  justify-content: start;
+  gap: 10px;
+  min-height: 78px;
+  text-align: left;
+  padding: 12px;
+}
+.workspace-choice strong,
+.workspace-choice small {
+  display: block;
+}
+.workspace-choice strong {
+  font-size: 14px;
+}
+.workspace-choice small {
+  color: #647887;
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 4px;
+}
+.workspace-choice[aria-pressed="true"] {
+  border-color: #243f58;
+  background: #eaf1f6;
+  box-shadow: inset 0 0 0 1px #243f58;
+}
+.viewing-as {
+  font-size: 12px;
+  color: #647887;
+  margin: 12px 0 0;
+}
+.additional-scenarios {
+  font-size: 12px;
+  margin-top: 8px;
+  max-width: 480px;
+}
+.additional-scenarios summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 8px 0;
+  color: #245b82;
+}
+.additional-scenarios p {
+  color: #647887;
+  margin: 4px 0 12px;
+}
+.scenario-field {
+  display: block;
+  font-weight: 550;
+}
+.scenario-field select {
+  width: 100%;
 }
 .page-heading {
   display: flex;
@@ -183,11 +262,17 @@ select {
   align-items: start;
 }
 .queue-pane,
-.detail-pane {
+.detail-pane,
+.selected-pane {
   background: white;
   border: 1px solid #dce4e9;
   border-radius: 12px;
   padding: 24px;
+}
+.selected-pane > .detail-pane {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
 .queue-pane {
   container-type: inline-size;
@@ -234,8 +319,10 @@ select {
 .section-heading {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
+  gap: 12px;
   margin-top: 30px;
+  margin-bottom: 12px;
 }
 .section-heading:first-child {
   margin-top: 0;
@@ -571,21 +658,33 @@ textarea {
 .empty-detail {
   padding: 80px 30px;
 }
+.selected-pane > .empty-detail {
+  padding: 40px 0;
+}
 .empty-symbol {
   color: #adc1d0;
   font-size: 36px;
   margin-bottom: 20px;
 }
 .welcome {
-  max-width: 600px;
-  margin: 70px auto;
+  max-width: 720px;
+  margin: 40px 0;
 }
 .welcome h1 {
-  font-size: clamp(32px, 5vw, 52px);
+  font-size: clamp(32px, 5vw, 44px);
   margin: 24px 0;
 }
 .welcome > p {
   color: #647887;
+}
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+.welcome-actions button {
+  padding: 12px 18px;
 }
 .skip-link {
   position: absolute;
@@ -599,17 +698,17 @@ textarea {
   top: 12px;
 }
 @media (max-width: 760px) {
-  .app-header {
+  .header-inner {
     padding: 16px;
     align-items: start;
     flex-wrap: wrap;
   }
-  .demo-tools {
-    gap: 12px;
-    flex-wrap: wrap;
+  .demo-context {
+    text-align: left;
   }
-  .demo-clock {
-    display: none;
+  .workspace-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
   .app-main {
     padding: 20px 16px;
@@ -625,14 +724,12 @@ textarea {
     gap: 16px;
   }
   .queue-pane,
-  .detail-pane {
+  .detail-pane,
+  .selected-pane {
     padding: 18px;
   }
   .empty-detail {
     padding: 25px 10px;
-  }
-  .welcome {
-    margin: 35px auto;
   }
 }
 .brand-mark {
@@ -664,15 +761,14 @@ textarea {
   border: 1px solid #ced9e0;
   border-radius: 6px;
   padding: 9px 10px;
+  min-height: 44px;
+}
+.queue-controls select {
+  width: 100%;
 }
 .back-to-queue {
   margin-bottom: 14px;
   font-size: 13px;
-}
-.demo-disclosure {
-  font-size: 12px;
-  color: #647887;
-  max-width: 150px;
 }
 .history-state {
   display: block;
@@ -689,17 +785,36 @@ textarea {
   margin-top: 10px;
 }
 .browser-demo {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
-  padding: 18px 36px;
   border-bottom: 1px solid #cddce7;
   background: #eaf1f6;
   font-size: 12px;
 }
-.demo-introduction {
-  flex: 1 1 280px;
+.browser-demo-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  max-width: 1360px;
+  margin: auto;
+  padding: 20px 36px;
+}
+.demo-controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.demo-payment {
+  display: block;
+  flex: 1 1 200px;
+  max-width: 280px;
+  min-width: 0;
+  font-weight: 550;
+  line-height: 1.5;
+}
+.demo-payment select {
+  width: 100%;
+  font-weight: 400;
 }
 .demo-introduction strong {
   font-size: 14px;
@@ -721,36 +836,29 @@ textarea {
   margin-top: 0;
 }
 .demo-storage-notice {
-  flex-basis: 100%;
+  grid-column: 1 / -1;
   margin: 0;
   color: #82612d;
-}
-.recovery-shortcut {
-  margin-left: 12px;
-  padding: 12px 18px;
 }
 .demo-journey {
   margin-top: 24px;
   font-size: 14px;
 }
-@media (max-width: 760px) {
-  .browser-demo {
-    padding: 16px;
+@media (max-width: 1000px) {
+  .browser-demo-inner {
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
-  .browser-demo select {
-    max-width: 100%;
+  .demo-payment {
+    max-width: none;
   }
-  .recovery-shortcut {
-    margin: 12px 0 0;
-    display: flex;
-    width: fit-content;
+}
+@media (max-width: 760px) {
+  .browser-demo-inner {
+    padding: 16px;
   }
   .workspace-grid.has-selection .queue-pane {
     display: none;
-  }
-  .demo-disclosure {
-    max-width: none;
   }
 }
 @container (max-width: 380px) {

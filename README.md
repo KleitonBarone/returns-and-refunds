@@ -20,10 +20,12 @@ pnpm install --frozen-lockfile
 pnpm dev:demo
 ```
 
-Open the printed URL. Choose Maya to request a return, Ava for approval, Jules for
-inspection, and Sam for finance. **Explore refund recovery** opens a prepared
-lost-response case. The payment-outcome selector lets new refunds confirm normally
-or lose their simulated response. All orders and payments are fictional.
+Open the printed URL. Choose **Customer** to request a return, **Support** for
+approval, **Warehouse** for inspection, and **Finance** for the refund. Each
+workspace explains its task. **More demo scenarios** contains the extra customers
+and merchant. **Explore refund recovery** opens a prepared lost-response case.
+The payment-outcome selector controls new simulated refunds. All orders and
+payments are fictional.
 
 This mode runs entirely in the browser and saves progress in localStorage. Each
 visitor has independent data and a reset button. No Docker, API server, hosted
@@ -46,7 +48,7 @@ pnpm demo:run
 ```
 
 This starts real services on assigned loopback ports, with separate application
-and payment-simulator databases, migrations, and seeded scenarios. As Sam, open
+and payment-simulator databases, migrations, and seeded scenarios. In Finance, open
 `DEMO-UNKNOWN`, record a reason, and choose **Check payment status**. Maya sees
 the same history and remaining units. The fixture clock is October 1, 2026.
 

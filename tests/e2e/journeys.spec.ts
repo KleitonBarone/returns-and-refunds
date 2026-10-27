@@ -14,25 +14,26 @@ import {
   enter,
   expect,
   manifest,
-  persona,
+  scenario,
   serviceCommand,
   tabTo,
   test,
   typeReason,
   waitForHoldRelease,
+  workspace,
 } from "./fixtures.ts";
 
 if (process.env.RETURNS_E2E_MODE === "hold") {
   test("hold a real browser for abandoned-run recovery", async ({ page }) => {
     test.setTimeout(120000);
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Open Maya's orders" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start a return" })).toBeVisible();
     await waitForHoldRelease();
   });
 } else if (process.env.RETURNS_E2E_MODE === "fail") {
   test("deliberate failure retains useful bounded diagnostics", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Open Maya's orders" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start a return" })).toBeVisible();
     expect("injected browser failure").toBe("expected diagnostic fixture");
   });
 } else {
@@ -50,7 +51,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
         eventCopies: 2,
       });
       await page.goto("/");
-      await enter(page, "Open Maya's orders");
+      await enter(page, "Start a return");
       await enter(page, /NL-1042.*Return window open/);
       await expect(
         page.getByRole("button", { name: "Request return", exact: true }),
@@ -90,7 +91,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       await expect(page.getByRole("heading", { name: "NL-1042", exact: true })).toBeFocused();
       await detail.screenshot({ path: info.outputPath("customer-desktop.png") });
 
-      await persona(page, "support-ava", "support");
+      await workspace(page, "support");
       await enter(page, row);
       await typeReason(page, "Decision reason", "Eligible partial return within the window.");
       await enter(page, "Approve return");
@@ -104,7 +105,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       ).toBeVisible();
       await detail.screenshot({ path: info.outputPath("support-approved-desktop.png") });
 
-      await persona(page, "warehouse-jules", "warehouse");
+      await workspace(page, "warehouse");
       await enter(page, row);
       for (const [label, reason] of [
         ["Record receipt", "One tee received in the return parcel."],
@@ -122,7 +123,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
       ).toBeVisible();
       await detail.screenshot({ path: info.outputPath("warehouse-inspected-desktop.png") });
 
-      await persona(page, "finance-sam", "finance");
+      await workspace(page, "finance");
       await enter(page, row);
       await typeReason(page, "Refund reason", "Refund the inspected tee to the original payment.");
       await enter(page, "Review refund");
@@ -212,7 +213,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
         ),
       );
 
-      await persona(page, "customer-maya", "customer");
+      await workspace(page, "customer");
       await enter(page, row);
       await expect(refundPanel.getByText("Confirmed", { exact: true })).toBeVisible();
       await expect(
@@ -242,7 +243,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
   }, info) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await enter(page, "Open Maya's orders");
+    await enter(page, "Start a return");
     await enter(page, /NL-1031.*Window closed/);
     await expect(page.getByText(/The 30-day return window closed/)).toBeVisible();
     await expect(page.getByRole("spinbutton").first()).toBeDisabled();
@@ -273,7 +274,7 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
     }
     await enter(page, "Try again");
     await expect(page.getByRole("heading", { name: "Your orders & returns" })).toBeVisible();
-    await persona(page, "support-other", "support");
+    await scenario(page, "support-other", "support");
     await expect(page.getByRole("heading", { name: "No return requests yet" })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Return .*NL-1042/ })).toHaveCount(0);
   });

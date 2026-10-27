@@ -12,6 +12,7 @@ import { api } from "./api.ts";
 import { date } from "./format.ts";
 import { Icon } from "./icon.tsx";
 import { Workspace } from "./workspace.tsx";
+import { WorkspaceSwitcher } from "./workspace-switcher.tsx";
 import "./style.css";
 
 const browserDemo = import.meta.env.MODE === "demo";
@@ -40,42 +41,23 @@ function App() {
         Skip to workspace
       </a>
       <header className="app-header">
-        <div className="brand">
-          <div className="brand-mark" aria-hidden="true">
-            {session.data?.actor?.merchantName[0] ?? "N"}
+        <div className="header-inner">
+          <div className="brand">
+            <div className="brand-mark" aria-hidden="true">
+              {session.data?.actor?.merchantName[0] ?? "N"}
+            </div>
+            <div>
+              <strong>{session.data?.actor?.merchantName ?? "Northline Supply"}</strong>
+              <span>Returns workspace</span>
+            </div>
           </div>
-          <div>
-            <strong>{session.data?.actor?.merchantName ?? "Northline Supply"}</strong>
-            <span>Returns workspace</span>
+          <div className="demo-context">
+            <span>
+              {browserDemo ? "Browser demo" : "Local demo"} ·{" "}
+              {session.data ? date(session.data.demoNow) : "Connecting"}
+            </span>
+            <span>Fictional orders. No real payments.</span>
           </div>
-        </div>
-        <div className="demo-tools">
-          <span className="demo-clock">
-            {browserDemo ? "Browser demo" : "Local demo"} ·{" "}
-            {session.data ? date(session.data.demoNow) : "Connecting"}
-          </span>
-          <span className="demo-disclosure">Synthetic orders. No real payments.</span>
-          <label>
-            Demo persona
-            <select
-              value={session.data?.actor?.id ?? ""}
-              aria-disabled={switchPersona.isPending}
-              aria-busy={switchPersona.isPending}
-              onChange={(event) => {
-                if (!switchPersona.isPending) switchPersona.mutate(event.target.value);
-              }}
-            >
-              <option value="" disabled>
-                Choose a persona
-              </option>
-              {session.data?.personas.map((persona) => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.name} ({persona.role}
-                  {persona.merchantId === "northline" ? "" : ", other merchant"})
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
       </header>
       {DemoTools && (
@@ -93,6 +75,14 @@ function App() {
         </Suspense>
       )}
       <main id="main" className="app-main" tabIndex={-1}>
+        {session.data && (
+          <WorkspaceSwitcher
+            actor={session.data.actor}
+            personas={session.data.personas}
+            pendingId={switchPersona.isPending ? switchPersona.variables : undefined}
+            onSwitch={(id) => switchPersona.mutate(id)}
+          />
+        )}
         {session.isError ? (
           <section className="empty-detail">
             <h1>The workspace is unavailable</h1>
@@ -119,28 +109,27 @@ function App() {
               Understand every decision.
             </h1>
             <p>
-              Choose Maya to request a return, then switch to the support, warehouse, and finance
-              teams to follow its progress.
+              Start as the customer to request a return. Switch to Support, Warehouse, and Finance
+              to follow each decision.
             </p>
-            <button
-              className="primary"
-              type="button"
-              disabled={switchPersona.isPending}
-              onClick={() => switchPersona.mutate("customer-maya")}
-            >
-              <Icon
-                name={
-                  switchPersona.isPending && switchPersona.variables === "customer-maya"
-                    ? "loader"
-                    : "shopping-bag"
-                }
-              />
-              Open Maya's orders
-            </button>
-            {browserDemo && (
-              <>
+            <div className="welcome-actions">
+              <button
+                className="primary"
+                type="button"
+                disabled={switchPersona.isPending}
+                onClick={() => switchPersona.mutate("customer-maya")}
+              >
+                <Icon
+                  name={
+                    switchPersona.isPending && switchPersona.variables === "customer-maya"
+                      ? "loader"
+                      : "shopping-bag"
+                  }
+                />
+                Start a return
+              </button>
+              {browserDemo && (
                 <button
-                  className="recovery-shortcut"
                   type="button"
                   disabled={switchPersona.isPending}
                   onClick={() => switchPersona.mutate("finance-sam")}
@@ -154,12 +143,12 @@ function App() {
                   />
                   Explore refund recovery
                 </button>
-                <p className="demo-journey">
-                  Start with Maya, then choose Ava for approval, Jules for inspection, and Sam for
-                  the refund. For a prepared lost-response case, open Sam's{" "}
-                  <strong>DEMO-UNKNOWN</strong> return.
-                </p>
-              </>
+              )}
+            </div>
+            {browserDemo && (
+              <p className="demo-journey">
+                For a prepared refund recovery case, open <strong>DEMO-UNKNOWN</strong> in Finance.
+              </p>
             )}
             <p className="muted small">
               {browserDemo

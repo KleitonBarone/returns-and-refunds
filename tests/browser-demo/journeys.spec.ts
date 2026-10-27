@@ -23,9 +23,10 @@ test.afterEach(async ({ page }) => {
   expect(failures.get(page)).toEqual([]);
 });
 
-async function persona(page: Page, id: string) {
-  await page.getByRole("combobox", { name: "Demo persona", exact: true }).selectOption(id);
-  await expect(page.getByRole("combobox", { name: "Demo persona", exact: true })).toHaveValue(id);
+async function workspace(page: Page, name: string) {
+  const button = page.getByRole("button", { name: `${name} workspace`, exact: true });
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
 }
 async function openReturn(page: Page, orderNumber: string) {
   await page
@@ -52,7 +53,7 @@ test("completes the shared UI without a backend, persists progress, isolates vis
   await page.evaluate(() => localStorage.setItem("unrelated-project", "preserve"));
   // After assets load, the entire workflow still works with the network unavailable.
   await page.context().setOffline(true);
-  await page.getByRole("button", { name: "Open Maya's orders", exact: true }).click();
+  await workspace(page, "Customer");
   await page.getByRole("button", { name: /^NL-1042 Delivered/ }).click();
   await page
     .getByRole("spinbutton", { name: "Return quantity for Heavyweight cotton tee" })
@@ -62,14 +63,14 @@ test("completes the shared UI without a backend, persists progress, isolates vis
     .fill("The fit is too large.");
   await page.getByRole("button", { name: "Request return", exact: true }).click();
   await expect(page.getByRole("heading", { name: "NL-1042", exact: true })).toBeVisible();
-  await persona(page, "support-ava");
+  await workspace(page, "Support");
   await openReturn(page, "NL-1042");
   await decide(page, "Approve return");
-  await persona(page, "warehouse-jules");
+  await workspace(page, "Warehouse");
   await openReturn(page, "NL-1042");
   await decide(page, "Record receipt");
   await decide(page, "Pass inspection");
-  await persona(page, "finance-sam");
+  await workspace(page, "Finance");
   await openReturn(page, "NL-1042");
   await page
     .getByRole("textbox", { name: "Refund reason", exact: true })
@@ -91,7 +92,7 @@ test("completes the shared UI without a backend, persists progress, isolates vis
   try {
     const visitor = await other.newPage();
     await visitor.goto(baseURL ?? "");
-    await visitor.getByRole("button", { name: "Open Maya's orders", exact: true }).click();
+    await visitor.getByRole("button", { name: "Start a return", exact: true }).click();
     await expect(
       visitor.getByRole("button", { name: /^Return .+ for NL-1042, Maya Chen,/ }),
     ).toHaveCount(0);
@@ -102,11 +103,11 @@ test("completes the shared UI without a backend, persists progress, isolates vis
   await page.getByRole("button", { name: "Reset demo", exact: true }).click();
   await expect(page.getByRole("button", { name: "Confirm reset", exact: true })).toBeFocused();
   await page.getByRole("button", { name: "Confirm reset", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Open Maya's orders", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a return", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reset demo", exact: true })).toBeFocused();
   expect(await page.evaluate(() => localStorage.getItem("unrelated-project"))).toBe("preserve");
   await page.reload();
-  await expect(page.getByRole("button", { name: "Open Maya's orders", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a return", exact: true })).toBeVisible();
 });
 
 test("recovers the original simulated payment after reload on a narrow screen", async ({
@@ -148,7 +149,7 @@ test("recovers the original simulated payment after reload on a narrow screen", 
     fullPage: true,
   });
   await page.getByRole("button", { name: /Back to/ }).click();
-  await persona(page, "customer-maya");
+  await workspace(page, "Customer");
   await page.getByRole("button", { name: /^NL-1031 Delivered/ }).click();
   await expect(page.getByRole("button", { name: "Request return", exact: true })).toBeDisabled();
   await expect(page.getByText(/The 30-day return window closed/)).toBeVisible();
@@ -181,6 +182,35 @@ test("loads a fresh demo after malformed saved data", async ({ page }) => {
   );
   await page.goto("/");
   await expect(page.getByText(/Saved demo data could not be read/)).toBeVisible();
-  await page.getByRole("button", { name: "Open Maya's orders", exact: true }).click();
+  await page.getByRole("button", { name: "Start a return", exact: true }).click();
   await expect(page.getByRole("button", { name: /^NL-1042 Delivered/ })).toBeVisible();
+});
+
+test("keeps alternate customers and merchants in additional scenarios", async ({ page }) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("group", { name: "Choose a workspace" }).getByRole("button"),
+  ).toHaveCount(4);
+  const scenarios = page.getByRole("combobox", { name: "Additional demo scenario", exact: true });
+  await expect(scenarios).toBeHidden();
+  const customer = page.getByRole("button", { name: "Customer workspace", exact: true });
+  await customer.focus();
+  await page.keyboard.press("Enter");
+  await expect(customer).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Viewing as Maya Chen at Northline Supply.")).toBeVisible();
+  await page.getByText("More demo scenarios", { exact: true }).press("Enter");
+  await scenarios.selectOption("customer-leo");
+  await expect(page.getByRole("button", { name: /^NL-1043 Delivered/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^NL-1042 Delivered/ })).toHaveCount(0);
+  await expect(page.getByText("Viewing as Leo Martins at Northline Supply.")).toBeVisible();
+  await scenarios.selectOption("customer-other");
+  await expect(page.getByRole("button", { name: /^OT-2001 Delivered/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^NL-/ })).toHaveCount(0);
+  await expect(page.getByText("Viewing as Noah Smith at Other Store.")).toBeVisible();
+  await scenarios.selectOption("support-other");
+  await expect(page.getByRole("heading", { name: "No return requests yet" })).toBeVisible();
+  await workspace(page, "Finance");
+  await expect(page.getByRole("button", { name: /^Return .+ for DEMO-UNKNOWN,/ })).toBeVisible();
+  await expect(page.getByText("Viewing as Sam Rivera at Northline Supply.")).toBeVisible();
+  await expect(scenarios).toHaveValue("");
 });

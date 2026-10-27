@@ -9,11 +9,14 @@ pnpm install --frozen-lockfile
 pnpm dev:demo
 ```
 
-Open the printed URL. Start with Maya's `NL-1042` order, then switch to Ava for
-approval, Jules for receipt and inspection, and Sam for the refund. The payment
-outcome selector affects newly submitted refunds. Choose a lost response to
-practice checking the original operation. **Explore refund recovery** opens Sam's
-workspace with a prepared `DEMO-UNKNOWN` case.
+Open the printed URL. Choose **Customer** and open the `NL-1042` order. Switch to
+**Support** for approval, **Warehouse** for receipt and inspection, and **Finance**
+for the refund. The four workspace buttons describe each role's task and show
+which workspace is selected. The current person's name appears below them.
+**More demo scenarios** contains the extra customer and other-merchant accounts.
+The payment outcome selector affects newly submitted refunds. Choose a lost
+response to practice checking the original operation. **Explore refund recovery**
+opens the Finance workspace with a prepared `DEMO-UNKNOWN` case.
 
 The business clock stays at October 1, 2026. Browser mode uses the same forms,
 contracts, query views, confirmations, and histories as the full application.

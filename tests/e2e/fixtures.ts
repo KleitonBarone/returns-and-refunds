@@ -119,9 +119,20 @@ export async function typeReason(page: Page, label: string, text: string) {
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText(text);
 }
-export async function persona(page: Page, id: string, role: string) {
-  const selector = page.getByRole("combobox", { name: "Demo persona" });
-  await expect(selector).toBeEnabled();
+export async function workspace(page: Page, role: string) {
+  const label = `${role[0]?.toUpperCase()}${role.slice(1)} workspace`;
+  await enter(page, label);
+  await expect(page.getByRole("button", { name: label, exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+}
+export async function scenario(page: Page, id: string, role: string) {
+  const more = page.getByText("More demo scenarios", { exact: true });
+  await tabTo(page, more);
+  await page.keyboard.press("Enter");
+  const selector = page.getByRole("combobox", { name: "Additional demo scenario" });
+  await expect(selector).toHaveAttribute("aria-disabled", "false");
   await tabTo(page, selector);
   const options = await selector
     .locator("option:not([disabled])")
@@ -130,11 +141,11 @@ export async function persona(page: Page, id: string, role: string) {
   expect(targetIndex).toBeGreaterThanOrEqual(0);
   await page.keyboard.press("Home");
   await expect(selector).toHaveValue(String(options[0]));
-  await expect(selector).toBeEnabled();
+  await expect(selector).toHaveAttribute("aria-disabled", "false");
   for (let step = 1; step <= targetIndex; step++) {
     await page.keyboard.press("ArrowDown");
     await expect(selector).toHaveValue(String(options[step]));
-    await expect(selector).toBeEnabled();
+    await expect(selector).toHaveAttribute("aria-disabled", "false");
   }
   await expect(selector).toHaveValue(id);
   await expect(page.getByText(`${role} workspace`, { exact: true })).toHaveText(
