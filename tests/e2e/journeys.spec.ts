@@ -14,7 +14,6 @@ import {
   enter,
   expect,
   manifest,
-  scenario,
   serviceCommand,
   tabTo,
   test,
@@ -274,7 +273,12 @@ if (process.env.RETURNS_E2E_MODE === "hold") {
     }
     await enter(page, "Try again");
     await expect(page.getByRole("heading", { name: "Your orders & returns" })).toBeVisible();
-    await scenario(page, "support-other", "support");
+    const otherMerchantSession = await page.request.post("/api/session", {
+      data: { personaId: "support-other" },
+      headers: { origin: `http://127.0.0.1:${manifest.webPort}` },
+    });
+    expect(otherMerchantSession.ok()).toBe(true);
+    await page.reload();
     await expect(page.getByRole("heading", { name: "No return requests yet" })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Return .*NL-1042/ })).toHaveCount(0);
   });

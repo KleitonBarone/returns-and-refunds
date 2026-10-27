@@ -210,28 +210,6 @@ select {
   color: #647887;
   margin: 12px 0 0;
 }
-.additional-scenarios {
-  font-size: 12px;
-  margin-top: 8px;
-  max-width: 480px;
-}
-.additional-scenarios summary {
-  cursor: pointer;
-  width: fit-content;
-  padding: 8px 0;
-  color: #245b82;
-}
-.additional-scenarios p {
-  color: #647887;
-  margin: 4px 0 12px;
-}
-.scenario-field {
-  display: block;
-  font-weight: 550;
-}
-.scenario-field select {
-  width: 100%;
-}
 .page-heading {
   display: flex;
   justify-content: space-between;

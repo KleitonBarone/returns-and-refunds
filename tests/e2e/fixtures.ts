@@ -127,31 +127,6 @@ export async function workspace(page: Page, role: string) {
     "true",
   );
 }
-export async function scenario(page: Page, id: string, role: string) {
-  const more = page.getByText("More demo scenarios", { exact: true });
-  await tabTo(page, more);
-  await page.keyboard.press("Enter");
-  const selector = page.getByRole("combobox", { name: "Additional demo scenario" });
-  await expect(selector).toHaveAttribute("aria-disabled", "false");
-  await tabTo(page, selector);
-  const options = await selector
-    .locator("option:not([disabled])")
-    .evaluateAll((items) => items.map((item) => item.getAttribute("value")));
-  const targetIndex = options.indexOf(id);
-  expect(targetIndex).toBeGreaterThanOrEqual(0);
-  await page.keyboard.press("Home");
-  await expect(selector).toHaveValue(String(options[0]));
-  await expect(selector).toHaveAttribute("aria-disabled", "false");
-  for (let step = 1; step <= targetIndex; step++) {
-    await page.keyboard.press("ArrowDown");
-    await expect(selector).toHaveValue(String(options[step]));
-    await expect(selector).toHaveAttribute("aria-disabled", "false");
-  }
-  await expect(selector).toHaveValue(id);
-  await expect(page.getByText(`${role} workspace`, { exact: true })).toHaveText(
-    `${role} workspace`,
-  );
-}
 export async function waitForHoldRelease() {
   await writeFile(join(runDirectory, "browser-ready"), "ready\n");
   for (let step = 0; step < 900; step++) {

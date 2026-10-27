@@ -22,8 +22,8 @@ pnpm dev:demo
 
 Open the printed URL. Choose **Customer** to request a return, **Support** for
 approval, **Warehouse** for inspection, and **Finance** for the refund. Each
-workspace explains its task. **More demo scenarios** contains the extra customers
-and merchant. **Explore refund recovery** opens a prepared lost-response case.
+workspace explains its task. **Explore refund recovery** opens a prepared
+lost-response case.
 The payment-outcome selector controls new simulated refunds. All orders and
 payments are fictional.
 

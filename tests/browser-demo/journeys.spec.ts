@@ -185,32 +185,3 @@ test("loads a fresh demo after malformed saved data", async ({ page }) => {
   await page.getByRole("button", { name: "Start a return", exact: true }).click();
   await expect(page.getByRole("button", { name: /^NL-1042 Delivered/ })).toBeVisible();
 });
-
-test("keeps alternate customers and merchants in additional scenarios", async ({ page }) => {
-  await page.goto("/");
-  await expect(
-    page.getByRole("group", { name: "Choose a workspace" }).getByRole("button"),
-  ).toHaveCount(4);
-  const scenarios = page.getByRole("combobox", { name: "Additional demo scenario", exact: true });
-  await expect(scenarios).toBeHidden();
-  const customer = page.getByRole("button", { name: "Customer workspace", exact: true });
-  await customer.focus();
-  await page.keyboard.press("Enter");
-  await expect(customer).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText("Viewing as Maya Chen at Northline Supply.")).toBeVisible();
-  await page.getByText("More demo scenarios", { exact: true }).press("Enter");
-  await scenarios.selectOption("customer-leo");
-  await expect(page.getByRole("button", { name: /^NL-1043 Delivered/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^NL-1042 Delivered/ })).toHaveCount(0);
-  await expect(page.getByText("Viewing as Leo Martins at Northline Supply.")).toBeVisible();
-  await scenarios.selectOption("customer-other");
-  await expect(page.getByRole("button", { name: /^OT-2001 Delivered/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^NL-/ })).toHaveCount(0);
-  await expect(page.getByText("Viewing as Noah Smith at Other Store.")).toBeVisible();
-  await scenarios.selectOption("support-other");
-  await expect(page.getByRole("heading", { name: "No return requests yet" })).toBeVisible();
-  await workspace(page, "Finance");
-  await expect(page.getByRole("button", { name: /^Return .+ for DEMO-UNKNOWN,/ })).toBeVisible();
-  await expect(page.getByText("Viewing as Sam Rivera at Northline Supply.")).toBeVisible();
-  await expect(scenarios).toHaveValue("");
-});

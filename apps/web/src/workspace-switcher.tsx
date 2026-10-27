@@ -19,9 +19,6 @@ export function WorkspaceSwitcher({
   pendingId: string | undefined;
   onSwitch: (id: string) => void;
 }) {
-  const additional = personas.filter(
-    (persona) => !workspaces.some((step) => step.id === persona.id),
-  );
   return (
     <section className="workspace-switcher" aria-labelledby="workspace-switcher-title">
       <div className="switcher-heading">
@@ -58,32 +55,6 @@ export function WorkspaceSwitcher({
           "Start with Customer to request your first return."
         )}
       </p>
-      {additional.length > 0 && (
-        <details className="additional-scenarios">
-          <summary>More demo scenarios</summary>
-          <p>Explore a different customer or merchant.</p>
-          <label className="scenario-field">
-            Additional demo scenario
-            <select
-              value={additional.some((persona) => persona.id === actor?.id) ? actor?.id : ""}
-              aria-disabled={Boolean(pendingId)}
-              aria-busy={Boolean(pendingId)}
-              onChange={(event) => {
-                if (!pendingId) onSwitch(event.target.value);
-              }}
-            >
-              <option value="" disabled>
-                Choose a scenario
-              </option>
-              {additional.map((persona) => (
-                <option key={persona.id} value={persona.id}>
-                  {persona.name}, {persona.role} at {persona.merchantName}
-                </option>
-              ))}
-            </select>
-          </label>
-        </details>
-      )}
     </section>
   );
 }

@@ -13,7 +13,6 @@ Open the printed URL. Choose **Customer** and open the `NL-1042` order. Switch t
 **Support** for approval, **Warehouse** for receipt and inspection, and **Finance**
 for the refund. The four workspace buttons describe each role's task and show
 which workspace is selected. The current person's name appears below them.
-**More demo scenarios** contains the extra customer and other-merchant accounts.
 The payment outcome selector affects newly submitted refunds. Choose a lost
 response to practice checking the original operation. **Explore refund recovery**
 opens the Finance workspace with a prepared `DEMO-UNKNOWN` case.
