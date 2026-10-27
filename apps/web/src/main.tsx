@@ -10,6 +10,7 @@ import { createRoot } from "react-dom/client";
 import { sessionContract } from "../../../packages/contracts/src/index.ts";
 import { api } from "./api.ts";
 import { date } from "./format.ts";
+import { Icon } from "./icon.tsx";
 import { Workspace } from "./workspace.tsx";
 import "./style.css";
 
@@ -97,6 +98,7 @@ function App() {
             <h1>The workspace is unavailable</h1>
             <p role="alert">{session.error.message}</p>
             <button type="button" onClick={() => session.refetch()}>
+              <Icon name={session.isFetching ? "loader" : "refresh"} />
               Try again
             </button>
           </section>
@@ -123,8 +125,16 @@ function App() {
             <button
               className="primary"
               type="button"
+              disabled={switchPersona.isPending}
               onClick={() => switchPersona.mutate("customer-maya")}
             >
+              <Icon
+                name={
+                  switchPersona.isPending && switchPersona.variables === "customer-maya"
+                    ? "loader"
+                    : "shopping-bag"
+                }
+              />
               Open Maya's orders
             </button>
             {browserDemo && (
@@ -132,8 +142,16 @@ function App() {
                 <button
                   className="recovery-shortcut"
                   type="button"
+                  disabled={switchPersona.isPending}
                   onClick={() => switchPersona.mutate("finance-sam")}
                 >
+                  <Icon
+                    name={
+                      switchPersona.isPending && switchPersona.variables === "finance-sam"
+                        ? "loader"
+                        : "search"
+                    }
+                  />
                   Explore refund recovery
                 </button>
                 <p className="demo-journey">

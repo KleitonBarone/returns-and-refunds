@@ -12,6 +12,7 @@ import {
 import { ReturnActions } from "./actions.tsx";
 import { api } from "./api.ts";
 import { date, dateTime, refundLabel, stateLabel } from "./format.ts";
+import { Icon } from "./icon.tsx";
 import { RefundPanel } from "./refund.tsx";
 
 function ReturnForm({ order, onCreated }: { order: OrderView; onCreated: (id: string) => void }) {
@@ -126,6 +127,7 @@ function ReturnForm({ order, onCreated }: { order: OrderView; onCreated: (id: st
             !order.eligible || !selected.length || reason.trim().length < 3 || create.isPending
           }
         >
+          <Icon name={create.isPending ? "loader" : "send"} />
           {create.isPending ? "Sending request…" : "Request return"}
         </button>
       </form>
@@ -330,6 +332,7 @@ export function Workspace({ actor }: { actor: Actor }) {
                 <p className="error" role="alert">
                   {orders.error.message}
                   <button type="button" onClick={() => orders.refetch()}>
+                    <Icon name={orders.isFetching ? "loader" : "refresh"} />
                     Try again
                   </button>
                 </p>
@@ -352,6 +355,7 @@ export function Workspace({ actor }: { actor: Actor }) {
                   <span className={`status ${item.eligible ? "status-open" : "status-closed"}`}>
                     {item.eligible ? "Return window open" : "Window closed"}
                   </span>
+                  <Icon name="chevron-right" />
                 </button>
               ))}
             </>
@@ -388,6 +392,7 @@ export function Workspace({ actor }: { actor: Actor }) {
             <p className="error" role="alert">
               {returns.error.message}
               <button type="button" onClick={() => returns.refetch()}>
+                <Icon name={returns.isFetching ? "loader" : "refresh"} />
                 Try again
               </button>
             </p>
@@ -413,6 +418,7 @@ export function Workspace({ actor }: { actor: Actor }) {
                   setFilter("all");
                 }}
               >
+                <Icon name="filter-x" />
                 Clear filters
               </button>
             </div>
@@ -445,6 +451,7 @@ export function Workspace({ actor }: { actor: Actor }) {
                   </span>
                 )}
               </div>
+              <Icon name="chevron-right" />
             </button>
           ))}
         </section>
@@ -458,6 +465,7 @@ export function Workspace({ actor }: { actor: Actor }) {
                 setReturnId(null);
               }}
             >
+              <Icon name="arrow-left" />
               {customer ? "Back to orders and returns" : "Back to return queue"}
             </button>
           )}
@@ -468,6 +476,7 @@ export function Workspace({ actor }: { actor: Actor }) {
               )}
               <p>{detail.error.message}</p>
               <button type="button" onClick={() => detail.refetch()}>
+                <Icon name={detail.isFetching ? "loader" : "refresh"} />
                 Try again
               </button>
             </div>

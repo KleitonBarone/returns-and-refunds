@@ -8,6 +8,15 @@ import {
 } from "../../../packages/contracts/src/index.ts";
 import { api } from "./api.ts";
 import { focusConfirmation, focusDetailHeading } from "./focus.ts";
+import { Icon, type IconName } from "./icon.tsx";
+
+const actionIcons = {
+  approve: "check",
+  reject: "x",
+  receive: "package-check",
+  pass_inspection: "clipboard-check",
+  fail_inspection: "clipboard-x",
+} satisfies Record<(typeof returnActions)[number]["name"], IconName>;
 
 export function ReturnActions({ actor, request }: { actor: Actor; request: ReturnView }) {
   const client = useQueryClient();
@@ -75,6 +84,7 @@ export function ReturnActions({ actor, request }: { actor: Actor; request: Retur
               disabled={decision.isPending}
               onClick={() => decision.mutate()}
             >
+              <Icon name={decision.isPending ? "loader" : actionIcons[selected.name]} />
               {decision.isPending ? "Saving decision…" : `Confirm ${selected.label.toLowerCase()}`}
             </button>
             <button
@@ -85,6 +95,7 @@ export function ReturnActions({ actor, request }: { actor: Actor; request: Retur
                 focusDetailHeading();
               }}
             >
+              <Icon name="x" />
               Cancel
             </button>
           </div>
@@ -106,6 +117,7 @@ export function ReturnActions({ actor, request }: { actor: Actor; request: Retur
                 setAction(item.name);
               }}
             >
+              <Icon name={actionIcons[item.name]} />
               {item.label}
             </button>
           ))}
@@ -115,6 +127,7 @@ export function ReturnActions({ actor, request }: { actor: Actor; request: Retur
         <div className="error" role="alert">
           <p>{decision.error.message}</p>
           <button type="button" onClick={() => client.invalidateQueries({ queryKey: ["return"] })}>
+            <Icon name="refresh" />
             Refresh return
           </button>
         </div>

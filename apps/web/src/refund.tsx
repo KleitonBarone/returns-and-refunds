@@ -9,6 +9,7 @@ import {
 import { api } from "./api.ts";
 import { focusConfirmation, focusDetailHeading } from "./focus.ts";
 import { dateTime, refundLabel } from "./format.ts";
+import { Icon } from "./icon.tsx";
 
 const explanations = {
   pending: "The refund is queued. Its amount and items remain reserved.",
@@ -68,6 +69,7 @@ function RecoveryActions({ request }: { request: ReturnView }) {
           disabled={reason.trim().length < 3 || recover.isPending}
           onClick={() => recover.mutate("check")}
         >
+          <Icon name={recover.isPending && recover.variables === "check" ? "loader" : "search"} />
           {recover.isPending && recover.variables === "check"
             ? "Checking payment…"
             : "Check payment status"}
@@ -80,6 +82,7 @@ function RecoveryActions({ request }: { request: ReturnView }) {
               disabled={reason.trim().length < 3 || recover.isPending}
               onClick={() => setConfirming(true)}
             >
+              <Icon name="refresh" />
               Retry original refund
             </button>
           )}
@@ -98,6 +101,7 @@ function RecoveryActions({ request }: { request: ReturnView }) {
               disabled={reason.trim().length < 3 || recover.isPending}
               onClick={() => recover.mutate("retry")}
             >
+              <Icon name={recover.isPending ? "loader" : "refresh"} />
               {recover.isPending ? "Queuing original refund…" : "Confirm original refund retry"}
             </button>
             <button
@@ -108,6 +112,7 @@ function RecoveryActions({ request }: { request: ReturnView }) {
                 focusDetailHeading();
               }}
             >
+              <Icon name="x" />
               Cancel
             </button>
           </div>
@@ -218,6 +223,7 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
               disabled={submit.isPending}
               onClick={() => submit.mutate()}
             >
+              <Icon name={submit.isPending ? "loader" : "credit-card"} />
               {submit.isPending
                 ? "Queuing refund…"
                 : `Confirm ${money(request.amountMinor, request.currency)} refund`}
@@ -230,6 +236,7 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
                 focusDetailHeading();
               }}
             >
+              <Icon name="x" />
               Cancel
             </button>
           </div>
@@ -241,6 +248,7 @@ export function RefundPanel({ actor, request }: { actor: Actor; request: ReturnV
           disabled={reason.trim().length < 3 || submit.isPending}
           onClick={() => setConfirming(true)}
         >
+          <Icon name="credit-card" />
           Review refund
         </button>
       )}
